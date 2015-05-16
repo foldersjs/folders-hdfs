@@ -13,7 +13,9 @@
   },
   "homepage": "https://github.com/foldersjs/folders-hdfs",
   "dependencies": {
+  	"request": "^2.55.0"
   },
   "devDependencies": {
+    
   }
 }
