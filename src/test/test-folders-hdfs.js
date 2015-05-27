@@ -2,12 +2,17 @@ var fs = require('fs');
 
 var FoldersHdfs = new require('../folders-hdfs');
 
-// TODO we may want to pass the host, port, username as the param of inin
 var url = "http://45.55.223.28/webhdfs/v1/";
 var hdfs = new FoldersHdfs();
 
 // test ls the root path
-hdfs.ls(url, function cb(files) {
+hdfs.ls(url, function cb(files,error) {
+	if (error) {
+		console.log("error in ls directory/files");
+		console.log(error);
+		return;
+	}
+	
 	console.log("hdfs result for ls / ");
 	console.log(files);
 });
@@ -22,7 +27,7 @@ var stream = fs.createReadStream('dat/test.txt');
 console.log("input stream");
 console.log(stream);
 hdfs.write({
-	uri : url + "test/test.txt",
+	uri : url + "data/test.txt",
 	shareId : "test-share-id",
 	streamId : "test-stream-id",
 	data : stream
@@ -41,7 +46,7 @@ hdfs.write({
 hdfs.cat({
 	shareId : "test-share-id",
 	data : {
-		fileId : url + "test/test.txt"
+		fileId : url + "data/test.txt"
 	}
 }, function cb(results, error) {
 	if (error) {

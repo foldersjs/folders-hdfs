@@ -1,6 +1,7 @@
 // Folders.io connector to WebHDFS
 var request = require('request');
 
+//TODO we may want to pass the host, port, username as the param of inin
 var FoldersHdfs = function(prefix){
 	this.prefix = prefix;
 };
@@ -133,37 +134,44 @@ var cat = function(path, cb) {
 		json : true
 	}, function(error, response, body) {
 
-		if (error)
+		if (error){
+			console.error(error);
 			return cb(null, error);
+		}
 
-		if (isError(response)) 
+		if (isError(response)) {
+			console.error(response);
 			return cb(null, parseError(body));
+		}
 
 		// get the json of FileStatus
 		var fileStatus = jsonBody.FileStatus;
 
 		// check if is file, don't support cat Directoy
 		if (fileStatus.type == null || fileStataus.type == 'DIRECTORY') {
-			cb(null, "refused to cat directory");
-			return;
+			console.error("refused to cat directory");
+			return cb(null, "refused to cat directory");
 		}
 
 		// step 2: get the redirect url for reading the data
 		var readUrl = op(path, WebHdfsOp.READ);
 		request.get(readUrl, function(error, response, body) {
-			if (error)
+			if (error){
+				console.error(error);
 				return cb(null, error);
+			}
 
-			if (isError(response)) 
+			if (isError(response)) {
+				console.error(response);
 				return cb(null, parseError(body));
-			
+			}
 			
 			// check if there is a redirect url for reading here.
 			if (!isRedirect(response)){
 				var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
 					+ response.statusCode;
-				console.log(errMsg);
-				console.log(response);
+				console.error(errMsg);
+				console.error(response);
 				return callback(null, errMsg);
 			}
 			
@@ -171,11 +179,15 @@ var cat = function(path, cb) {
 			
 			// step 3: read the file data from the redirected url.
 			request.get(redirectUrl,function(error, response, body){
-				if (error)
+				if (error){
+					console.error(error);
 					return cb(null, error);
+				}
 
-				if (isError(response)) 
+				if (isError(response)){ 
+					console.error(response);
 					return cb(null, parseError(body));
+				}
 				
 				cb({
 					 // TODO check how to compatible with stream here.
@@ -201,19 +213,23 @@ var write = function(uri, stream, cb) {
 	//step 1: get the redirected url for writing data
 	request.put(path, function(error, response, body) {
 		// forward request error
-		if (error)
+		if (error){
+			console.error(error);
 			return cb(null, error);
+		}
 
-		if (isError(response)) 
+		if (isError(response)) {
+			console.error(response);
 			return cb(null, parseError(body));
+		}
 		
 		// check for the expected redirect,307 TEMPORARY_REDIRECT
 		// will be redirected to a datanode where the file data is to be written
 		if (!isRedirect(response)){
 			var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
 				+ response.statusCode;
-			console.log(errMsg);
-			console.log(response);
+			console.error(errMsg);
+			console.error(response);
 			return callback(null, errMsg);
 		}
 		
@@ -228,12 +244,16 @@ var write = function(uri, stream, cb) {
 			// NOTES we should use the form upload instead??
 			body : stream
 		}, function(error, response, body) {
-			if (error)
+			if (error){
+				console.error(error);
 				return cb(null, error);
-
-			if (isError(response))
+			}
+			
+			if (isError(response)){
+				console.error(response);
 				return cb(null, parseError(body));
-
+			}
+			
 			else if (isSuccess(response))
 				return cb("created success");
 			else
@@ -296,8 +316,8 @@ var lsMounts = function(path, cb) {
 var ls = function(path, cb) {
   request(op(path, WebHdfsOp.LIST), function(err,response, content) {
       if(err) {
-          console.log("Could not connect");
-          return;
+          console.error("Could not connect",err);
+          return cb(null, err);
       }
       try {
           console.log("LISTSTATUS result:");
@@ -306,11 +326,10 @@ var ls = function(path, cb) {
     	  var fileObj = JSON.parse(content);
           files = fileObj.FileStatuses.FileStatus;
       } catch(e) {
-          console.log("No luck parsing");
-          console.log("path: " + path);
-          console.log(fileObj);
-          console.log(content);
-          return;
+          console.error("No luck parsing, path: ",path);
+          console.error(fileObj);
+          console.error(content);
+          return cb(null, content);
       }
       processListResponse(path, fileObj, cb);
   });
@@ -350,22 +369,22 @@ var processListResponse = function(path, content, cb) {
                 console.log("failed: " + files[i].pathSuffix);
                 console.log(err);
                 latch--;
-                return;
+                return cb(null, err);
             }
             
             //FIXME check how node handle the share variable between different thread.
             latch--;
-            try {
-            stats = JSON.parse(statsResponse);
-            if(stats.RemoteException) {
-              console.log("oops", stats);
-              return;
-            }
-              stats = stats.ContentSummary;
-            } catch(e) {
-              console.log("oh");
-              console.log(statsResponse);
-            }
+						try {
+							stats = JSON.parse(statsResponse);
+							if (stats.RemoteException) {
+								console.log("RemoteException", stats);
+								return cb(null, stats.RemoteException);
+							}
+							stats = stats.ContentSummary;
+						} catch (e) {
+							console.error("Parse GETCONTENTSUMMARY json response error,",statsResponse);
+						}
+            
             results[i].size = stats.length;
             var cols = ['directoryCount','fileCount','spaceConsumed','spaceQuota'];
             if(!results[i].meta) results[i].meta = {};
