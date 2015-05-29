@@ -11,6 +11,7 @@
   "bugs": {
     "url": "https://github.com/foldersjs/folders-hdfs/issues"
   },
+  "main":"/src/folders-hdfs",
   "homepage": "https://github.com/foldersjs/folders-hdfs",
   "dependencies": {
   	"request": "^2.55.0"
