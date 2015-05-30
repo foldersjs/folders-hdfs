@@ -1,9 +1,16 @@
 // Folders.io connector to WebHDFS
 var request = require('request');
 
+var baseurl;
 //TODO we may want to pass the host, port, username as the param of inin
-var FoldersHdfs = function(prefix){
+var FoldersHdfs = function(prefix, options) {
 	this.prefix = prefix;
+
+	baseurl = options.baseurl;
+	if (baseurl.length && baseurl.substr(-1) != "/")
+		baseurl = baseurl + "/";
+	this.username = options.username;
+	console.log("inin foldersHdfs,", baseurl, this.username);
 };
 
 // The web hdfs operation support
@@ -19,11 +26,11 @@ module.exports = FoldersHdfs;
 
 FoldersHdfs.prototype.ls = function(path,cb){
 	ls(path, cb);
-}
+};
 
 FoldersHdfs.prototype.meta = function(path,files,cb){
 	lsMounts(path, cb);
-}
+};
 
 FoldersHdfs.prototype.write = function(data, cb) {
 	var stream = data.data;
@@ -81,28 +88,36 @@ FoldersHdfs.prototype.cat = function(data, cb) {
 };
 
 var op = function(path, op) {
-    ////FIXME view_op ??
-	//var parts = view_op(path, viewfs);
-    //var url = parts.base + parts.path + "?op="+op+"&user.name=hdfs";
-    var url = path + "?op="+op+"&user.name=hdfs";
+	// //FIXME view_op ??
+	// var parts = view_op(path, viewfs);
+	// var url = parts.base + parts.path + "?op="+op+"&user.name=hdfs";
+	
+	//delete the '/' of path
+	if (path == null || typeof(path)=='undefined' || path=="/"){
+		path = "";
+	}else if (path.length &&  path.substr(0, 1) == "/"){
+		path = path.substr(1);
+	}
+	
+	var url = baseurl + path + "?op=" + op + "&user.name=hdfs";
 	console.log("out: " + url);
-    return url;
+	return url;
 };
 
 //http redirect status code
 var isRedirect = function(res){
 	return [301, 307].indexOf(res.statusCode) !== -1 && res.headers.hasOwnProperty('location');
-}
+};
 
 // http success status code
 var isSuccess = function(res){
 	return [200, 201].indexOf(res.statusCode) !== -1;
-}
+};
 
 // http error status code
 var isError = function(res){
 	return [400,401,402,403,404,500].indexOf(res.statusCode) !== -1;
-}
+};
 
 //check the exception in response body
 var parseError = function (body){
@@ -122,7 +137,7 @@ var parseError = function (body){
 	}
 	
 	return error;
-}
+};
 
 //cat file 
 var cat = function(path, cb) {
@@ -196,12 +211,12 @@ var cat = function(path, cb) {
 				// TODO check name here
 					name : fileStatus.pathSuffix
 					
-				})
+				});
 			});
 		});
 
 	});
-}
+};
 
 // write file
 var write = function(uri, stream, cb) {
@@ -320,8 +335,8 @@ var ls = function(path, cb) {
           return cb(null, err);
       }
       try {
-          console.log("LISTSTATUS result:");
-          console.log(content);
+          //console.log("LISTSTATUS result:");
+          //console.log(content);
 
     	  var fileObj = JSON.parse(content);
           files = fileObj.FileStatuses.FileStatus;

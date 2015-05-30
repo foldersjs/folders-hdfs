@@ -2,11 +2,14 @@ var fs = require('fs');
 
 var FoldersHdfs = new require('../folders-hdfs');
 
-var url = "http://45.55.223.28/webhdfs/v1/";
-var hdfs = new FoldersHdfs();
+var url = "http://45.55.223.28/webhdfs/v1/data";
+var hdfs = new FoldersHdfs('folders-hdfs1',{
+	baseurl:url,
+	username:hdfs
+});
 
 // test ls the root path
-hdfs.ls(url, function cb(files,error) {
+hdfs.ls('/', function cb(files,error) {
 	if (error) {
 		console.log("error in ls directory/files");
 		console.log(error);
