@@ -2,10 +2,10 @@ var fs = require('fs');
 
 var FoldersHdfs = new require('../folders-hdfs');
 
-var url = "http://45.55.223.28/webhdfs/v1/data";
+var url = "http://45.55.223.28/webhdfs/v1/data/";
 var hdfs = new FoldersHdfs('folders-hdfs1',{
 	baseurl:url,
-	username:hdfs
+	username:'hdfs'
 });
 
 // test ls the root path
