@@ -30,7 +30,7 @@ var stream = fs.createReadStream('dat/test.txt');
 console.log("input stream");
 console.log(stream);
 hdfs.write({
-	uri : url + "data/test.txt",
+	uri : "/test.txt",
 	shareId : "test-share-id",
 	streamId : "test-stream-id",
 	data : stream
@@ -46,12 +46,15 @@ hdfs.write({
 });
 
 // test cat file
-hdfs.cat({
-	shareId : "test-share-id",
-	data : {
-		fileId : url + "data/test.txt"
-	}
-}, function cb(results, error) {
+hdfs.cat(
+		"/test.txt"
+//		{
+//	shareId : "test-share-id",
+//	data : {
+//		fileId : url + "data/test.txt"
+//	}
+//}
+		, function cb(results, error) {
 	if (error) {
 		console.log("error in cat file");
 		console.log(error);

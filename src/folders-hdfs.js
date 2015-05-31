@@ -28,9 +28,10 @@ FoldersHdfs.prototype.ls = function(path,cb){
 	ls(path, cb);
 };
 
-FoldersHdfs.prototype.meta = function(path,files,cb){
-	lsMounts(path, cb);
-};
+//Temporary comment meta, have to fixed the 'viewfs' first 
+//FoldersHdfs.prototype.meta = function(path,files,cb){
+//	lsMounts(path, cb);
+//};
 
 FoldersHdfs.prototype.write = function(data, cb) {
 	var stream = data.data;
@@ -60,30 +61,31 @@ FoldersHdfs.prototype.write = function(data, cb) {
 };
 
 FoldersHdfs.prototype.cat = function(data, cb) {
-	var o = data.data;
-	o.path = o.fileId;
+	var path = data;	
 
-	cat(o.path, function(result, error) {
+	cat(path, function(result, error) {
 
 		if (error){
 			cb(null, error);
 			return;
 		}
 		
-		var headers = {
-			"Content-Length" : result.size,
-			"Content-Type" : "application/octet-stream",
-			"X-File-Type" : "application/octet-stream",
-			"X-File-Size" : result.size,
-			"X-File-Name" : result.name
-		};
-
-		cb({
-			streamId : o.streamId,
-			data : result.stream,
-			headers : headers,
-			shareId : data.shareId
-		});
+		cb(result);
+		
+	//		var headers = {
+	//			"Content-Length" : result.size,
+	//			"Content-Type" : "application/octet-stream",
+	//			"X-File-Type" : "application/octet-stream",
+	//			"X-File-Size" : result.size,
+	//			"X-File-Name" : result.name
+	//		};
+	//
+	//		cb({
+	//			streamId : o.streamId,
+	//			data : result.stream,
+	//			headers : headers,
+	//			shareId : data.shareId
+	//		});
 	});
 };
 
