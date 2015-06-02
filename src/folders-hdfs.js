@@ -33,29 +33,16 @@ FoldersHdfs.prototype.ls = function(path,cb){
 //	lsMounts(path, cb);
 //};
 
-FoldersHdfs.prototype.write = function(data, cb) {
-	var stream = data.data;
-	// var headers = data.headers;
-	var streamId = data.streamId;
-	var shareId = data.shareId;
-	var uri = data.uri;
-
-	var headers = {
-		"Content-Type" : "application/json"
-	};
+FoldersHdfs.prototype.write = function(uri, data, cb) {
 	
-	write(uri, stream, function(result,error) {
+	write(uri, data, function(result,error) {
 		if (error){
 			cb(null, error);
 			return;
 		}
 		
-		cb({
-			streamId : streamId,
-			data : result,
-			headers : headers,
-			shareId : shareId
-		});
+		cb(result);
+
 	});
 
 };
@@ -161,11 +148,19 @@ var cat = function(path, cb) {
 			return cb(null, parseError(body));
 		}
 
+		console.log("response in cat,",body);
+		if (typeof body === 'string'){
+			try{
+				body = JSON.parse(body);
+			}catch(err){
+				body = null;
+			}
+		}
+		
 		// get the json of FileStatus
-		var fileStatus = jsonBody.FileStatus;
-
+		var fileStatus = body.FileStatus;
 		// check if is file, don't support cat Directoy
-		if (fileStatus.type == null || fileStataus.type == 'DIRECTORY') {
+		if (fileStatus.type == null || fileStatus.type == 'DIRECTORY') {
 			console.error("refused to cat directory");
 			return cb(null, "refused to cat directory");
 		}
@@ -221,7 +216,7 @@ var cat = function(path, cb) {
 };
 
 // write file
-var write = function(uri, stream, cb) {
+var write = function(uri, data, cb) {
 
 	// curl -i -X PUT "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=CREATE
 	var path = op(uri, WebHdfsOp.CREATE);
@@ -251,36 +246,44 @@ var write = function(uri, stream, cb) {
 		}
 		
 		console.log("return redirect uri for step 1,");
-		console.log(response);
+		//console.log(response);
 
 		var redirectedUri = response.headers.location;
 
-		request.put({
-			uri : redirectedUri,
-			// TODO read data from stream, and send data
-			// NOTES we should use the form upload instead??
-			body : stream
-		}, function(error, response, body) {
-			if (error){
-				console.error(error);
-				return cb(null, error);
-			}
+		if (data instanceof Buffer){
+		
+			request.put({
+				uri : redirectedUri,
+				// NOTES we should use the form upload instead??
+				body : data
+			}, function(error, response, body) {
+				if (error){
+					console.error(error);
+					return cb(null, error);
+				}
+				
+				if (isError(response)){
+					console.error(response);
+					return cb(null, parseError(body));
+				}
+				
+				else if (isSuccess(response))
+					return cb("created success");
+				else
+					return cb(null, "unkowned response, " + response.body);
+			});
+		}else{
 			
-			if (isError(response)){
-				console.error(response);
-				return cb(null, parseError(body));
-			}
-			
-			else if (isSuccess(response))
-				return cb("created success");
-			else
-				return cb(null, "unkowned response, " + response.body);
-		});
-			
-		//			// pipe the input stream to put request
-		//			// FIXME should use the form upload instead??
-		//			stream.pipe(request.put(redirectedUri));
+			var errHandle = function(e){
+				cb(null,e.message);
+			};
 
+			//stream source input, use pipe
+			data.on('error',errHandle)
+				.pipe(request.put(redirectedUri))
+				.on('error',errHandle)
+				.on('end', function() {console.log("write finished");cb("write uri success");});
+		}
 	});
 }
 

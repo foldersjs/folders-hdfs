@@ -16,8 +16,8 @@ hdfs.ls('/', function cb(files,error) {
 		return;
 	}
 	
-	console.log("hdfs result for ls / ");
-	console.log(files);
+	console.log("hdfs result for ls /, files length: ",files.length);
+	//console.log(files);
 });
 
 // hdfs.meta(url, function cb(files) {
@@ -27,14 +27,13 @@ hdfs.ls('/', function cb(files,error) {
 
 // test write file
 var stream = fs.createReadStream('dat/test.txt');
-console.log("input stream");
-console.log(stream);
-hdfs.write({
-	uri : "/test.txt",
-	shareId : "test-share-id",
-	streamId : "test-stream-id",
-	data : stream
-}, function cb(result, error) {
+hdfs.write(
+//	{
+//	uri : "/test.txt",
+//	shareId : "test-share-id",
+//	streamId : "test-stream-id",
+//	data : stream}
+		"/test.txt", stream, function cb(result, error) {
 	if (error) {
 		console.log("error in write file");
 		console.log(error);
@@ -61,8 +60,6 @@ hdfs.cat(
 		return;
 	}
 
-	console.log("\ncat result:");
-	console.log(results);
 	console.log("\nfile data");
 	var stream = results.data;
 	stream.on('readable', function() {
