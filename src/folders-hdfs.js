@@ -24,6 +24,13 @@ var WebHdfsOp = {
 
 module.exports = FoldersHdfs;
 
+FoldersHdfs.prototype.features = FoldersHdfs.features = {
+	cat : true,
+	ls : true,
+	write : true,
+	server : false
+};
+
 FoldersHdfs.prototype.ls = function(path,cb){
 	ls(path, cb);
 };
