@@ -1,5 +1,6 @@
 // Folders.io connector to WebHDFS
 var request = require('request');
+var uriParse = require('url');
 
 var baseurl;
 //TODO we may want to pass the host, port, username as the param of inin
@@ -95,7 +96,7 @@ var op = function(path, op) {
 		path = path.substr(1);
 	}
 	
-	var url = baseurl + path + "?op=" + op + "&user.name=hdfs";
+	var url = uriParse.resolve(baseurl, path + "?op=" + op + "&user.name=hdfs");
 	console.log("out: " + url);
 	return url;
 };
@@ -195,6 +196,7 @@ var cat = function(path, cb) {
 			}
 			
 			var redirectUrl = res.headers.hasOwnProperty('location');
+			console.log("get data from redirect uri, ",redirectedUri);
 			
 			// step 3: read the file data from the redirected url.
 			request.get(redirectUrl,function(error, response, body){
@@ -256,6 +258,7 @@ var write = function(uri, data, cb) {
 		//console.log(response);
 
 		var redirectedUri = response.headers.location;
+		console.log("send data to redirect uri, ",redirectedUri);
 
 		if (data instanceof Buffer){
 		
@@ -282,14 +285,17 @@ var write = function(uri, data, cb) {
 		}else{
 			
 			var errHandle = function(e){
+				console.error("error in pipe write to folder-hdfs,",e)
 				cb(null,e.message);
 			};
 
 			//stream source input, use pipe
 			data.on('error',errHandle)
-				.pipe(request.put(redirectedUri))
-				.on('error',errHandle)
-				.on('end', function() {console.log("write finished");cb("write uri success");});
+				.pipe(request.put(redirectedUri).on('error',errHandle)
+						.on('end', function() {
+							console.log("write finished");
+							cb("write uri success");}));
+			
 		}
 	});
 }
