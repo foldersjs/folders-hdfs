@@ -10,12 +10,12 @@ Module can be installed via "npm install folders-hdfs".
 ### Installation 
 
 
-To install 'folders-ftp' 
+To install 'folders-hdfs' 
 
 Installation (use --save to save to package.json)
 
 ```sh
-npm install folders-ftp
+npm install folders-hdfs
 ```
 
 
