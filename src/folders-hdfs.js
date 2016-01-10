@@ -3,6 +3,8 @@ var request = require('request');
 var uriParse = require('url');
 var assert = require('assert');
 
+var DEFAULT_HDFS_PREFIX = "/http_window.io_0:webhdfs/";
+
 var baseurl;
 var username;
 var prefix;
@@ -13,8 +15,10 @@ var FoldersHdfs = function(prefix, options) {
 	assert.equal(typeof (options), 'object', 
 			"argument 'options' must be a object");
 
-	//this.prefix = prefix || "/webhdfs_window.io_0/";
-	this.prefix = "/webhdfs_window.io_0/";
+	if (prefix && prefix.length && prefix.substr(-1) != '/')
+		prefix += '/';
+
+	this.prefix = prefix || DEFAULT_HDFS_PREFIX;
 
 	this.configure(options);
 };
@@ -80,8 +84,8 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 	}
 
 	var parts = path.split('/');
-	var prefixPath = parts[0].toUpperCase();
-	// service = parts[0].toUpperCase();
+	//TODO may want to check with Prefix
+	var prefixPath = parts[0];
 	path = parts.slice(1, parts.length).join('/');
 	console.log("prefixPath:", prefixPath);
 	console.log("path:", path);
@@ -387,7 +391,6 @@ var asHdfsFolders = function(dir, files) {
 		var cols = [ 'permission', 'owner', 'group', 'fileId' ];
 		for ( var meta in cols)
 			o.meta[cols[meta]] = file[cols[meta]];
-		//o.uri = "#/http_window.io_0:webhdfs/" + o.fullPath;
 		o.uri = prefix + o.fullPath;
 		o.size = 0;
 		o.extension = "txt";
