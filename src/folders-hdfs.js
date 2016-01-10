@@ -423,6 +423,9 @@ var ls = function(path, cb) {
 
 			var fileObj = JSON.parse(content);
 			files = fileObj.FileStatuses.FileStatus;
+			if (files.length == 0){
+				cb(null, files);
+			}
 		} catch (e) {
 			console.error("No luck parsing, path: ", path);
 			console.error(fileObj);
