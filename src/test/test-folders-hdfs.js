@@ -9,7 +9,7 @@ var hdfs = new FoldersHdfs('folders-hdfs1',{
 });
 
 // test ls the root path
-hdfs.ls('/', function cb(files,error) {
+hdfs.ls('/', function cb(error, files) {
 	if (error) {
 		console.log("error in ls directory/files");
 		console.log(error);

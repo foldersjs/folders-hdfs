@@ -10,7 +10,7 @@ var FoldersHdfs = function(prefix, options) {
 	assert.equal(typeof (options), 'object', 
 			"argument 'options' must be a object");
 
-	this.prefix = prefix || "/http_window.io_0:hdfs/";
+	this.prefix = prefix || "/http_window.io_0:webhdfs/";
 	this.configure(options);
 };
 
@@ -388,11 +388,11 @@ var ls = function(path, cb) {
 	request(op(path, WebHdfsOp.LIST), function(err, response, content) {
 		if (err) {
 			console.error("Could not connect", err);
-			return cb(null, err);
+			return cb(err, null);
 		}
 		try {
-			// console.log("LISTSTATUS result:");
-			// console.log(content);
+			//console.log("LISTSTATUS result:");
+			//console.log(content);
 
 			var fileObj = JSON.parse(content);
 			files = fileObj.FileStatuses.FileStatus;
@@ -400,7 +400,7 @@ var ls = function(path, cb) {
 			console.error("No luck parsing, path: ", path);
 			console.error(fileObj);
 			console.error(content);
-			return cb(null, content);
+			return cb(content,null);
 		}
 		processListResponse(path, fileObj, cb);
 	});
@@ -440,7 +440,7 @@ var processListResponse = function(path, content, cb) {
                 console.log("failed: " + files[i].pathSuffix);
                 console.log(err);
                 latch--;
-                return cb(null, err);
+                return cb(err, null);
             }
             
             //FIXME check how node handle the share variable between different thread.
@@ -449,7 +449,7 @@ var processListResponse = function(path, content, cb) {
 							stats = JSON.parse(statsResponse);
 							if (stats.RemoteException) {
 								console.log("RemoteException", stats);
-								return cb(null, stats.RemoteException);
+								return cb(stats.RemoteException, null);
 							}
 							stats = stats.ContentSummary;
 						} catch (e) {
@@ -462,7 +462,7 @@ var processListResponse = function(path, content, cb) {
             for(var meta in cols) results[i].meta[cols[meta]] = stats[cols[meta]];
             if(latch == 0) {
               console.log("fin", results);
-              cb(results);
+              cb(null, results);
             }
         })})(i);
       }
