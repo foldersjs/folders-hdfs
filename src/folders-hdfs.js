@@ -1,29 +1,42 @@
 // Folders.io connector to WebHDFS
 var request = require('request');
 var uriParse = require('url');
+var assert = require('assert');
 
 var baseurl;
 //TODO we may want to pass the host, port, username as the param of inin
 var FoldersHdfs = function(prefix, options) {
-	this.prefix = prefix;
 
-	baseurl = options.baseurl;
-	if (baseurl.length && baseurl.substr(-1) != "/")
-		baseurl = baseurl + "/";
-	this.username = options.username;
-	console.log("inin foldersHdfs,", baseurl, this.username);
+	assert.equal(typeof (options), 'object', 
+			"argument 'options' must be a object");
+
+	this.prefix = prefix || "/http_window.io_0:hdfs/";
+	this.configure(options);
 };
 
 // The web hdfs operation support
 var WebHdfsOp = {
-		LIST:"LISTSTATUS",
-		DIRECTORY_SUMMARY:"GETCONTENTSUMMARY",
-		CREATE:"CREATE",
-		READ:"OPEN",
-		GET_FILE_STATUS:"GETFILESTATUS"
+	LIST:"LISTSTATUS",
+	DIRECTORY_SUMMARY:"GETCONTENTSUMMARY",
+	CREATE:"CREATE",
+	READ:"OPEN",
+	GET_FILE_STATUS:"GETFILESTATUS"
 };
 
 module.exports = FoldersHdfs;
+
+FoldersHdfs.prototype.configure = function(options) {
+	// var
+	baseurl = options.baseurl;
+
+	if (baseurl.length && baseurl.substr(-1) != "/")
+		baseurl = baseurl + "/";
+
+	this.username = options.username;
+	this.baseurl = baseurl;
+
+	console.log("inin foldersHdfs,", baseurl, this.username);
+}
 
 FoldersHdfs.prototype.features = FoldersHdfs.features = {
 	cat : true,
@@ -31,6 +44,25 @@ FoldersHdfs.prototype.features = FoldersHdfs.features = {
 	write : true,
 	server : false
 };
+
+FoldersHdfs.isConfigValid = function(config, cb) {
+	assert.equal(typeof (config), 'object',
+			"argument 'config' must be a object");
+
+	assert.equal(typeof (cb), 'function', "argument 'cb' must be a function");
+
+	var baseurl = config.baseurl;
+	var username = config.username;
+	var checkConfig = config.checkConfig;
+
+	if (checkConfig == false) {
+		return cb(null, config);
+	}
+
+	// TODO check access credentials and test conn if needed.
+
+	return cb(null, config);
+}
 
 FoldersHdfs.prototype.ls = function(path,cb){
 	ls(path, cb);
@@ -317,55 +349,61 @@ var asHdfsMounts = function() {
 };
 
 var asHdfsFolders = function(dir, files) {
-  var out = [];
-  for(var i = 0; i < files.length; i ++) {
-    var file = files[i];
-    var o = { name: file.pathSuffix };
-    o.fullPath = dir + file.pathSuffix;
-    if(!o.meta) o.meta = {};
-    var cols = ['permission','owner','group','fileId'];
-    for(var meta in cols) o.meta[cols[meta]] = file[cols[meta]];
-    o.uri = "#/http_window.io_0:webhdfs/" + o.fullPath;
-    o.size = 0;
-    o.extension = "txt";
-    o.type = "text/plain";
-    if(file.type == 'DIRECTORY') {
-        o.extension = '+folder';
-        o.type = "";
-    }
-    o.modificationTime = file.modificationTime ? +new Date(file.modificationTime) : 0;
-    out.push(o);
-  }
-  return out;
+	var out = [];
+	for (var i = 0; i < files.length; i++) {
+		var file = files[i];
+		var o = {
+			name : file.pathSuffix
+		};
+		o.fullPath = dir + file.pathSuffix;
+		if (!o.meta)
+			o.meta = {};
+		var cols = [ 'permission', 'owner', 'group', 'fileId' ];
+		for ( var meta in cols)
+			o.meta[cols[meta]] = file[cols[meta]];
+		o.uri = "#/http_window.io_0:webhdfs/" + o.fullPath;
+		o.size = 0;
+		o.extension = "txt";
+		o.type = "text/plain";
+		if (file.type == 'DIRECTORY') {
+			o.extension = '+folder';
+			o.type = "";
+		}
+		o.modificationTime = file.modificationTime ? +new Date(
+				file.modificationTime) : 0;
+		out.push(o);
+	}
+	return out;
 };
 
 
 // so meta.
 // META:
 var lsMounts = function(path, cb) {
-  processListResponse(path, asHdfsMounts(), cb);
+	processListResponse(path, asHdfsMounts(), cb);
 };
 
 var ls = function(path, cb) {
-  request(op(path, WebHdfsOp.LIST), function(err,response, content) {
-      if(err) {
-          console.error("Could not connect",err);
-          return cb(null, err);
-      }
-      try {
-          //console.log("LISTSTATUS result:");
-          //console.log(content);
 
-    	  var fileObj = JSON.parse(content);
-          files = fileObj.FileStatuses.FileStatus;
-      } catch(e) {
-          console.error("No luck parsing, path: ",path);
-          console.error(fileObj);
-          console.error(content);
-          return cb(null, content);
-      }
-      processListResponse(path, fileObj, cb);
-  });
+	request(op(path, WebHdfsOp.LIST), function(err, response, content) {
+		if (err) {
+			console.error("Could not connect", err);
+			return cb(null, err);
+		}
+		try {
+			// console.log("LISTSTATUS result:");
+			// console.log(content);
+
+			var fileObj = JSON.parse(content);
+			files = fileObj.FileStatuses.FileStatus;
+		} catch (e) {
+			console.error("No luck parsing, path: ", path);
+			console.error(fileObj);
+			console.error(content);
+			return cb(null, content);
+		}
+		processListResponse(path, fileObj, cb);
+	});
 };
 
 
