@@ -4,13 +4,18 @@ var uriParse = require('url');
 var assert = require('assert');
 
 var baseurl;
+var username;
+var prefix;
+
 //TODO we may want to pass the host, port, username as the param of inin
 var FoldersHdfs = function(prefix, options) {
-
+	console.log('FolderHdfs prefix:', prefix);
 	assert.equal(typeof (options), 'object', 
 			"argument 'options' must be a object");
 
-	this.prefix = prefix || "/http_window.io_0:webhdfs/";
+	//this.prefix = prefix || "/webhdfs_window.io_0/";
+	this.prefix = "/webhdfs_window.io_0/";
+
 	this.configure(options);
 };
 
@@ -26,16 +31,18 @@ var WebHdfsOp = {
 module.exports = FoldersHdfs;
 
 FoldersHdfs.prototype.configure = function(options) {
-	// var
-	baseurl = options.baseurl;
 
-	if (baseurl.length && baseurl.substr(-1) != "/")
-		baseurl = baseurl + "/";
+	this.baseurl = options.baseurl;
+	if (this.baseurl.length && this.baseurl.substr(-1) != "/")
+		this.baseurl = this.baseurl + "/";
 
 	this.username = options.username;
-	this.baseurl = baseurl;
 
-	console.log("inin foldersHdfs,", baseurl, this.username);
+	baseurl = this.baseurl;
+	username = this.username;
+	prefix = this.prefix;
+
+	console.log("inin foldersHdfs,", baseurl, username, prefix);
 }
 
 FoldersHdfs.prototype.features = FoldersHdfs.features = {
@@ -64,8 +71,27 @@ FoldersHdfs.isConfigValid = function(config, cb) {
 	return cb(null, config);
 }
 
+FoldersHdfs.prototype.getHdfsPath = function(path) {
+
+	path = (path == '/' ? null : path.slice(1));
+
+	if (path == null) {
+		return '';
+	}
+
+	var parts = path.split('/');
+	var prefixPath = parts[0].toUpperCase();
+	// service = parts[0].toUpperCase();
+	path = parts.slice(1, parts.length).join('/');
+	console.log("prefixPath:", prefixPath);
+	console.log("path:", path);
+
+	return path;
+}
+
 FoldersHdfs.prototype.ls = function(path,cb){
-	ls(path, cb);
+
+	ls(this.getHdfsPath(path), cb);
 };
 
 //Temporary comment meta, have to fixed the 'viewfs' first 
@@ -75,7 +101,7 @@ FoldersHdfs.prototype.ls = function(path,cb){
 
 FoldersHdfs.prototype.write = function(uri, data, cb) {
 	
-	write(uri, data, function(result,error) {
+	write(this.getHdfsPath(uri), data, function(result,error) {
 		if (error){
 			cb(null, error);
 			return;
@@ -90,7 +116,7 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
 FoldersHdfs.prototype.cat = function(data, cb) {
 	var path = data;	
 
-	cat(path, function(result, error) {
+	cat(this.getHdfsPath(path), function(result, error) {
 
 		if (error){
 			cb(null, error);
@@ -122,13 +148,13 @@ var op = function(path, op) {
 	// var url = parts.base + parts.path + "?op="+op+"&user.name=hdfs";
 	
 	//delete the '/' of path
-	if (path == null || typeof(path)=='undefined' || path=="/"){
+	if ( !path || typeof(path)=='undefined' || path=="/"){
 		path = "";
 	}else if (path.length &&  path.substr(0, 1) == "/"){
 		path = path.substr(1);
 	}
-	
-	var url = uriParse.resolve(baseurl, path + "?op=" + op + "&user.name=hdfs");
+	console.log("op path, "+path);
+	var url = uriParse.resolve(baseurl, path + "?op=" + op + "&user.name="+username);
 	console.log("out: " + url);
 	return url;
 };
@@ -361,7 +387,8 @@ var asHdfsFolders = function(dir, files) {
 		var cols = [ 'permission', 'owner', 'group', 'fileId' ];
 		for ( var meta in cols)
 			o.meta[cols[meta]] = file[cols[meta]];
-		o.uri = "#/http_window.io_0:webhdfs/" + o.fullPath;
+		//o.uri = "#/http_window.io_0:webhdfs/" + o.fullPath;
+		o.uri = prefix + o.fullPath;
 		o.size = 0;
 		o.extension = "txt";
 		o.type = "text/plain";
@@ -384,15 +411,15 @@ var lsMounts = function(path, cb) {
 };
 
 var ls = function(path, cb) {
-
+	console.log("ls path: ", path);
 	request(op(path, WebHdfsOp.LIST), function(err, response, content) {
 		if (err) {
 			console.error("Could not connect", err);
 			return cb(err, null);
 		}
 		try {
-			//console.log("LISTSTATUS result:");
-			//console.log(content);
+			console.log("LISTSTATUS result:");
+			console.log(content);
 
 			var fileObj = JSON.parse(content);
 			files = fileObj.FileStatuses.FileStatus;
@@ -400,7 +427,7 @@ var ls = function(path, cb) {
 			console.error("No luck parsing, path: ", path);
 			console.error(fileObj);
 			console.error(content);
-			return cb(content,null);
+			return cb({"errorMsg":"parse result error in server"},null);
 		}
 		processListResponse(path, fileObj, cb);
 	});
@@ -428,7 +455,7 @@ var lsdu = function(path, cb) {
 var processListResponse = function(path, content, cb) {
       var relPath = path;
       var files = content.FileStatuses.FileStatus;
-      if(path.substr(0,1) == "/") relPath = path.substr(1);
+      if( path && path.length && path.substr(0,1) == "/") relPath = path.substr(1);
       var results = asHdfsFolders(relPath, files);
       var latch = files.length;
       for(var i = 0; i < files.length; i++) {
