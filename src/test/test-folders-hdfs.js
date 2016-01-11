@@ -45,7 +45,7 @@ hdfs.write(
 	console.log(result);
 });
 
-// test cat file
+//test cat file
 hdfs.cat(
 		"/test.txt"
 //		{
@@ -54,15 +54,15 @@ hdfs.cat(
 //		fileId : url + "data/test.txt"
 //	}
 //}
-		, function cb(results, error) {
+	, function cb(error, results) {
 	if (error) {
 		console.log("error in cat file");
 		console.log(error);
 		return;
 	}
 
-	console.log("\nfile data");
-	var stream = results.data;
+	//console.log("\nresults,", results.name, results.size);
+	var stream = results.stream;
 	stream.on('readable', function() {
 		var chunk;
 		var decoder = new StringDecoder('utf8');

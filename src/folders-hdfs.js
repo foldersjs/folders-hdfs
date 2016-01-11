@@ -2,6 +2,7 @@
 var request = require('request');
 var uriParse = require('url');
 var assert = require('assert');
+var mime = require('mime');
 
 var DEFAULT_HDFS_PREFIX = "/http_window.io_0:webhdfs/";
 
@@ -125,14 +126,14 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
 FoldersHdfs.prototype.cat = function(data, cb) {
 	var path = data;	
 
-	cat(this.getHdfsPath(path), function(result, error) {
+	cat(this.getHdfsPath(path), function(error, result) {
 
 		if (error){
-			cb(null, error);
+			cb(error, null);
 			return;
 		}
-		
-		cb(result);
+
+		cb(null, result);
 		
 	//		var headers = {
 	//			"Content-Length" : result.size,
@@ -215,12 +216,12 @@ var cat = function(path, cb) {
 
 		if (error){
 			console.error(error);
-			return cb(null, error);
+			return cb(error, null);
 		}
 
 		if (isError(response)) {
 			console.error(response);
-			return cb(null, parseError(body));
+			return cb(parseError(body), null);
 		}
 
 		//console.log("response in cat,",body);
@@ -231,26 +232,29 @@ var cat = function(path, cb) {
 				body = null;
 			}
 		}
-		
+
 		// get the json of FileStatus
 		var fileStatus = body.FileStatus;
 		// check if is file, don't support cat Directoy
 		if (fileStatus.type == null || fileStatus.type == 'DIRECTORY') {
 			console.error("refused to cat directory");
-			return cb(null, "refused to cat directory");
+			return cb("refused to cat directory", null);
 		}
 
 		// step 2: get the redirect url for reading the data
 		var readUrl = op(path, WebHdfsOp.READ);
-		request.get(readUrl, function(error, response, body) {
+		console.log("list file in cat success", readUrl);
+		//request.put(readUrl, function(error, response, body) {
+		//FIXME, may auto redirect when solving the dns
+		request.get({ url: readUrl, followRedirect: false }, function(error, response, body) {
 			if (error){
 				console.error(error);
-				return cb(null, error);
+				return cb(error, null);
 			}
 
 			if (isError(response)) {
 				console.error(response);
-				return cb(null, parseError(body));
+				return cb(parseError(body), null);
 			}
 			
 			// check if there is a redirect url for reading here.
@@ -259,35 +263,44 @@ var cat = function(path, cb) {
 					+ response.statusCode;
 				console.error(errMsg);
 				console.error(response);
-				return callback(null, errMsg);
+				return cb(errMsg, null);
 			}
 			
-			var redirectUrl = res.headers.hasOwnProperty('location');
+			var redirectedUri = response.headers.location;
+
 			//FIXME temp dns replace code
 			redirectedUri = redirectedUri.replace(/hdfs1.folders.io/g, '45.55.223.28');
 			console.log("get data from redirect uri, ",redirectedUri);
-			
-			// step 3: read the file data from the redirected url.
-			request.get(redirectUrl,function(error, response, body){
-				if (error){
-					console.error(error);
-					return cb(null, error);
-				}
 
-				if (isError(response)){ 
-					console.error(response);
-					return cb(null, parseError(body));
-				}
-				
-				cb({
-					 // TODO check how to compatible with stream here.
-					stream : body,
-					size : fileStatus.length,
-				// TODO check name here
-					name : fileStatus.pathSuffix
-					
-				});
-			});
+			cb(null, {
+				stream: request(redirectedUri),
+				size : fileStatus.length,
+				// check name here
+				name: path
+				//name : fileStatus.pathSuffix
+			})
+
+			//			// step 3: read the file data from the redirected url.
+			//			var retStream = request.get(redirectedUri,function(error, response, body){
+			//				if (error){
+			//					console.error(error);
+			//					return cb(error, null);
+			//				}
+			//
+			//				if (isError(response)){ 
+			//					console.error(response);
+			//					return cb(parseError(body), null);
+			//				}
+			//
+			//				cb(null, {
+			//					 // TODO check how to compatible with stream here.
+			//					//stream : body,
+			//					stream: retStream,
+			//					size : fileStatus.length,
+			//				// TODO check name here
+			//					name : fileStatus.pathSuffix
+			//				});
+			//			});
 		});
 
 	});
