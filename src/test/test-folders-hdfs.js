@@ -2,8 +2,9 @@ var fs = require('fs');
 
 var FoldersHdfs = new require('../folders-hdfs');
 
+var prefix = '/http_window.io_0:webhdfs/'
 var url = "http://45.55.223.28/webhdfs/v1/data/";
-var hdfs = new FoldersHdfs('folders-hdfs1',{
+var hdfs = new FoldersHdfs(prefix,{
 	baseurl:url,
 	username:'hdfs'
 });
@@ -33,7 +34,7 @@ hdfs.write(
 //	shareId : "test-share-id",
 //	streamId : "test-stream-id",
 //	data : stream}
-		"/test.txt", stream, function cb(result, error) {
+		"/test.txt", stream, function cb(error, result) {
 	if (error) {
 		console.log("error in write file");
 		console.log(error);

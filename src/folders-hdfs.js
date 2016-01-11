@@ -84,9 +84,14 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 	}
 
 	var parts = path.split('/');
-	//TODO may want to check with Prefix
 	var prefixPath = parts[0];
-	path = parts.slice(1, parts.length).join('/');
+	if (prefix && prefix[0] == '/')
+		prefixPath = '/' + prefixPath;
+	prefixPath = prefixPath + '/';
+
+	// if the path start with the prefix, remove the prefix string.
+	if (prefixPath == prefix)
+		path = parts.slice(1, parts.length).join('/');
 	console.log("prefixPath:", prefixPath);
 	console.log("path:", path);
 
@@ -105,13 +110,13 @@ FoldersHdfs.prototype.ls = function(path,cb){
 
 FoldersHdfs.prototype.write = function(uri, data, cb) {
 	
-	write(this.getHdfsPath(uri), data, function(result,error) {
+	write(this.getHdfsPath(uri), data, function(error,result) {
 		if (error){
-			cb(null, error);
+			cb(error, null);
 			return;
 		}
 		
-		cb(result);
+		cb(null, result);
 
 	});
 
@@ -218,7 +223,7 @@ var cat = function(path, cb) {
 			return cb(null, parseError(body));
 		}
 
-		console.log("response in cat,",body);
+		//console.log("response in cat,",body);
 		if (typeof body === 'string'){
 			try{
 				body = JSON.parse(body);
@@ -258,6 +263,8 @@ var cat = function(path, cb) {
 			}
 			
 			var redirectUrl = res.headers.hasOwnProperty('location');
+			//FIXME temp dns replace code
+			redirectedUri = redirectedUri.replace(/hdfs1.folders.io/g, '45.55.223.28');
 			console.log("get data from redirect uri, ",redirectedUri);
 			
 			// step 3: read the file data from the redirected url.
@@ -298,12 +305,12 @@ var write = function(uri, data, cb) {
 		// forward request error
 		if (error){
 			console.error(error);
-			return cb(null, error);
+			return cb(error, null);
 		}
 
 		if (isError(response)) {
 			console.error(response);
-			return cb(null, parseError(body));
+			return cb(parseError(body), null);
 		}
 		
 		// check for the expected redirect,307 TEMPORARY_REDIRECT
@@ -313,13 +320,15 @@ var write = function(uri, data, cb) {
 				+ response.statusCode;
 			console.error(errMsg);
 			console.error(response);
-			return callback(null, errMsg);
+			return cb(errMsg, null);
 		}
-		
+
 		console.log("return redirect uri for step 1,");
 		//console.log(response);
-
 		var redirectedUri = response.headers.location;
+
+		//FIXME temp dns replace code
+		redirectedUri = redirectedUri.replace(/hdfs1.folders.io/g, '45.55.223.28');
 		console.log("send data to redirect uri, ",redirectedUri);
 
 		if (data instanceof Buffer){
@@ -331,24 +340,24 @@ var write = function(uri, data, cb) {
 			}, function(error, response, body) {
 				if (error){
 					console.error(error);
-					return cb(null, error);
+					return cb(error, null);
 				}
 				
 				if (isError(response)){
 					console.error(response);
-					return cb(null, parseError(body));
+					return cb(parseError(body), null);
 				}
 				
 				else if (isSuccess(response))
-					return cb("created success");
+					return cb(null, "created success");
 				else
-					return cb(null, "unkowned response, " + response.body);
+					return cb("unkowned response, " + response.body, null);
 			});
 		}else{
 			
 			var errHandle = function(e){
 				console.error("error in pipe write to folder-hdfs,",e)
-				cb(null,e.message);
+				cb(e.message, null);
 			};
 
 			//stream source input, use pipe
@@ -356,7 +365,7 @@ var write = function(uri, data, cb) {
 				.pipe(request.put(redirectedUri).on('error',errHandle)
 						.on('end', function() {
 							console.log("write finished");
-							cb("write uri success");}));
+							cb(null, "write uri success");}));
 			
 		}
 	});
@@ -421,8 +430,8 @@ var ls = function(path, cb) {
 			return cb(err, null);
 		}
 		try {
-			console.log("LISTSTATUS result:");
-			console.log(content);
+			//console.log("LISTSTATUS result:");
+			//console.log(content);
 
 			var fileObj = JSON.parse(content);
 			files = fileObj.FileStatuses.FileStatus;
@@ -494,7 +503,7 @@ var processListResponse = function(path, content, cb) {
             if(!results[i].meta) results[i].meta = {};
             for(var meta in cols) results[i].meta[cols[meta]] = stats[cols[meta]];
             if(latch == 0) {
-              console.log("fin", results);
+              //console.log("fin", results);
               cb(null, results);
             }
         })})(i);
