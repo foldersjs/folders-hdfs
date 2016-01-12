@@ -97,6 +97,25 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 	return path;
 }
 
+/**
+ * list folders/files
+ * 
+ * @param uri, the uri on hdfs to ls
+ *    eg, '/', '/sub-folder1', 
+ *    or dir start with {prefix}, '/http_window.io_0:webhdfs/sub-folder1'
+ * @param cb, callback function(err, result) function. 
+ *    result will be a file info array. [{}, ... {}]
+ *    a example file information
+ *   { 
+ *      name: 'emptysubfolder',
+ *      fullPath: 'emptysubfolder',
+ *      uri: '/http_window.io_0:webhdfs/emptysubfolder',
+ *      size: 510,
+ *      extension: '+folder',
+ *      type: '',
+ *      modificationTime: 1452527809825 
+ *    }
+ */
 FoldersHdfs.prototype.ls = function(path,cb){
 
 	ls(this.getHdfsPath(path), cb);
@@ -107,6 +126,14 @@ FoldersHdfs.prototype.ls = function(path,cb){
 //	lsMounts(path, cb);
 //};
 
+/**
+ * Write a file
+ * 
+ * @param path, string, the path 
+ * @param data, the input data, 'stream.Readable' or 'Buffer'
+ * @param cb, the callback function
+ * write(path,data,cb)
+ */
 FoldersHdfs.prototype.write = function(uri, data, cb) {
 	
 	write(this.getHdfsPath(uri), data, function(error,result) {
@@ -121,6 +148,18 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
 
 };
 
+/**
+ * Read a file
+ * 
+ * @param uri, the file uri to cat 
+ * @param cb, callback  function(err, result) function.
+ *    example for result.
+ *    {
+ *      stream: .., // a readable 'request' stream
+ *      size : .. , // file size
+ *      name: path
+ *    }
+ */
 FoldersHdfs.prototype.cat = function(data, cb) {
 	var path = data;	
 
@@ -150,6 +189,13 @@ FoldersHdfs.prototype.cat = function(data, cb) {
 	});
 };
 
+/**
+ * Delete a File
+ * 
+ * @param uri, the file uri to delete 
+ * @param cb, callback  function(err, result) function.
+ *    example for result. {"boolean":true}
+ */
 FoldersHdfs.prototype.unlink = function(path, cb) {
 
 	assert.equal(typeof (path), 'string', "argument 'path' must be a string");
