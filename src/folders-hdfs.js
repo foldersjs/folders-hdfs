@@ -13,7 +13,6 @@ var prefix;
 
 //TODO we may want to pass the host, port, username as the param of inin
 var FoldersHdfs = function(prefix, options) {
-	console.log('FolderHdfs prefix:', prefix);
 	assert.equal(typeof (options), 'object', 
 			"argument 'options' must be a object");
 
@@ -79,7 +78,6 @@ FoldersHdfs.isConfigValid = function(config, cb) {
 }
 
 FoldersHdfs.prototype.getHdfsPath = function(path) {
-
 	path = (path == '/' ? null : path.slice(1));
 
 	if (path == null) {
@@ -95,8 +93,6 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 	// if the path start with the prefix, remove the prefix string.
 	if (prefixPath == prefix)
 		path = parts.slice(1, parts.length).join('/');
-	console.log("prefixPath:", prefixPath);
-	console.log("path:", path);
 
 	return path;
 }
@@ -174,7 +170,7 @@ var op = function(path, op) {
 	}else if (path.length &&  path.substr(0, 1) == "/"){
 		path = path.substr(1);
 	}
-	console.log("op path, "+path);
+
 	var url = uriParse.resolve(baseurl, path + "?op=" + op + "&user.name="+username);
 	console.log("out: " + url);
 	return url;
@@ -235,7 +231,6 @@ var cat = function(path, cb) {
 			return cb(parseError(body), null);
 		}
 
-		//console.log("response in cat,",body);
 		if (typeof body === 'string'){
 			try{
 				body = JSON.parse(body);
@@ -254,7 +249,6 @@ var cat = function(path, cb) {
 
 		// step 2: get the redirect url for reading the data
 		var readUrl = op(path, WebHdfsOp.READ);
-		console.log("list file in cat success", readUrl);
 		//request.put(readUrl, function(error, response, body) {
 		//FIXME, may auto redirect when solving the dns
 		request.get({ url: readUrl, followRedirect: false }, function(error, response, body) {
@@ -322,8 +316,7 @@ var write = function(uri, data, cb) {
 
 	// curl -i -X PUT "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=CREATE
 	var path = op(uri, WebHdfsOp.CREATE);
-	console.log("step 1, expect the redirect tmp path for file write , url:" + path);
-	
+
 	//step 1: get the redirected url for writing data
 	request.put(path, function(error, response, body) {
 		// forward request error
@@ -347,8 +340,6 @@ var write = function(uri, data, cb) {
 			return cb(errMsg, null);
 		}
 
-		console.log("return redirect uri for step 1,");
-		//console.log(response);
 		var redirectedUri = response.headers.location;
 
 		//FIXME temp dns replace code
@@ -388,7 +379,6 @@ var write = function(uri, data, cb) {
 			data.on('error',errHandle)
 				.pipe(request.put(redirectedUri).on('error',errHandle)
 						.on('end', function() {
-							console.log("write finished");
 							cb(null, "write uri success");}));
 			
 		}
@@ -447,7 +437,6 @@ var lsMounts = function(path, cb) {
 };
 
 var ls = function(path, cb) {
-	console.log("ls path: ", path);
 	request(op(path, WebHdfsOp.LIST), function(err, response, content) {
 		if (err) {
 			console.error("Could not connect", err);
@@ -473,7 +462,6 @@ var ls = function(path, cb) {
 };
 
 var unlink = function(path, cb) {
-	console.log("unlink path: ", path);
 	request.del(op(path, WebHdfsOp.DELETE), function(err, response, content) {
 		if (err) {
 			console.log('unlink files error, ', err);
