@@ -3,6 +3,7 @@ var request = require('request');
 var uriParse = require('url');
 var assert = require('assert');
 var mime = require('mime');
+//request.debug = true;
 
 var DEFAULT_HDFS_PREFIX = "/http_window.io_0:webhdfs/";
 
@@ -30,7 +31,8 @@ var WebHdfsOp = {
 	DIRECTORY_SUMMARY:"GETCONTENTSUMMARY",
 	CREATE:"CREATE",
 	READ:"OPEN",
-	GET_FILE_STATUS:"GETFILESTATUS"
+	GET_FILE_STATUS:"GETFILESTATUS",
+	DELETE:"DELETE"
 };
 
 module.exports = FoldersHdfs;
@@ -151,6 +153,15 @@ FoldersHdfs.prototype.cat = function(data, cb) {
 	//		});
 	});
 };
+
+FoldersHdfs.prototype.unlink = function(path, cb) {
+
+	assert.equal(typeof (path), 'string', "argument 'path' must be a string");
+
+	assert.equal(typeof (cb), 'function', "argument 'cb' must be a function");
+
+	unlink(this.getHdfsPath(path), cb);
+}
 
 var op = function(path, op) {
 	// //FIXME view_op ??
@@ -461,6 +472,24 @@ var ls = function(path, cb) {
 	});
 };
 
+var unlink = function(path, cb) {
+	console.log("unlink path: ", path);
+	request.del(op(path, WebHdfsOp.DELETE), function(err, response, content) {
+		if (err) {
+			console.log('unlink files error, ', err);
+			return cb(err, null);
+		}
+
+		if (isError(response)) {
+			console.error(response);
+			return cb(parseError(body), null);
+		} else if (isSuccess(response))
+			return cb(null, content);
+		else
+			return cb("unkowned response, " + response.body, null);
+
+	});
+}
 
 var lsdu = function(path, cb) {
     var out = [];

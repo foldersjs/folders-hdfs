@@ -74,3 +74,16 @@ hdfs.cat(
 		done();
 	});
 });
+
+
+//test delete/unlinke files
+hdfs.unlink('/test.txt', function cb(error, result) {
+	if (error) {
+		console.log("error in unlink directory/files");
+		console.log(error);
+		return;
+	}
+
+	console.log("hdfs result for unlink /test1.txt,", result);
+	// console.log(files);
+});
