@@ -316,6 +316,7 @@ var write = function(uri, data, cb) {
 
 	// curl -i -X PUT "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=CREATE
 	var path = op(uri, WebHdfsOp.CREATE);
+	path = path + '&overwrite=true';
 
 	//step 1: get the redirected url for writing data
 	request.put(path, function(error, response, body) {
