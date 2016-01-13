@@ -319,8 +319,6 @@ var cat = function(path, cb) {
 			
 			var redirectedUri = response.headers.location;
 
-			//FIXME temp dns replace code
-			redirectedUri = redirectedUri.replace(/hdfs1.folders.io/g, '45.55.223.28');
 			console.log("get data from redirect uri, ",redirectedUri);
 
 			cb(null, {
@@ -389,8 +387,6 @@ var write = function(uri, data, cb) {
 
 		var redirectedUri = response.headers.location;
 
-		//FIXME temp dns replace code
-		redirectedUri = redirectedUri.replace(/hdfs1.folders.io/g, '45.55.223.28');
 		console.log("send data to redirect uri, ",redirectedUri);
 
 		if (data instanceof Buffer){
