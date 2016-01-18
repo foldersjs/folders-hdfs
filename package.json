@@ -11,13 +11,13 @@
   "bugs": {
     "url": "https://github.com/foldersjs/folders-hdfs/issues"
   },
-  "main":"./src/folders-hdfs",
+  "main": "./src/folders-hdfs",
   "homepage": "https://github.com/foldersjs/folders-hdfs",
   "dependencies": {
-  	"request": "^2.55.0",
-  	"mime": "^1.3.4"
+    "mime": "^1.3.4",
+    "request": "^2.55.0",
+    "webhdfs-proxy": "^0.1.2",
+    "webhdfs-proxy-memory": "^0.1.2"
   },
-  "devDependencies": {
-    
-  }
+  "devDependencies": {}
 }
