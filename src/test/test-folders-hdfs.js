@@ -26,41 +26,52 @@ module.exports = function testFoldersHdfs(hdfs, testFolder, testFile, callback) 
 
 	    console.log("result for write, ", result, '\n');
 
-	    // Step 3: test cat file
-	    console.log("step 3: cat, ", testFilePath);
-	    hdfs.cat(testFilePath, function cb(error, results) {
+	    // ls after write success
+	    hdfs.ls(testFolder, function cb(error, files) {
 		if (error) {
-		    console.log("error in cat file");
+		    console.log("error in ls directory/files");
 		    console.log(error);
 		    return callback(error);
 		}
 
-		console.log("results for cat,", results.name, results.size,
-			'\n');
-		// var stream = results.stream;
-		// stream.on('readable', function() {
-		// var chunk;
-		// var decoder = new StringDecoder('utf8');
-		// while (null !== (chunk = stream.read())) {
-		// console.log('\ngot %d bytes of data', chunk.length);
-		// // var strdata = decoder.write(chunk);
-		// // console.log('data:\n+' + strdata);
-		// }
-		// done();
-		// });
+		console.log("hdfs ls result after write /, ", files, '\n');
 
-		// Step 4 : test delete/unlinke files
-		console.log("step 4: unlink,", testFilePath);
-		hdfs.unlink(testFilePath, function cb(error, result) {
+		// Step 3: test cat file
+		console.log("step 3: cat, ", testFilePath);
+		hdfs.cat(testFilePath, function cb(error, results) {
 		    if (error) {
-			console.log("error in unlink directory/files");
+			console.log("error in cat file");
 			console.log(error);
 			return callback(error);
 		    }
 
-		    console.log("result for unlink,", result, '\n');
-		    // console.log(files);
-		    return callback();
+		    console.log("results for cat,", results.name, results.size,
+			    '\n');
+		    // var stream = results.stream;
+		    // stream.on('readable', function() {
+		    // var chunk;
+		    // var decoder = new StringDecoder('utf8');
+		    // while (null !== (chunk = stream.read())) {
+		    // console.log('\ngot %d bytes of data', chunk.length);
+		    // // var strdata = decoder.write(chunk);
+		    // // console.log('data:\n+' + strdata);
+		    // }
+		    // done();
+		    // });
+
+		    // Step 4 : test delete/unlinke files
+		    console.log("step 4: unlink,", testFilePath);
+		    hdfs.unlink(testFilePath, function cb(error, result) {
+			if (error) {
+			    console.log("error in unlink directory/files");
+			    console.log(error);
+			    return callback(error);
+			}
+
+			console.log("result for unlink,", result, '\n');
+			// console.log(files);
+			return callback();
+		    });
 		});
 	    });
 

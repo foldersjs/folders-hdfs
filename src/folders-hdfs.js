@@ -546,39 +546,52 @@ var processListResponse = function(path, content, cb) {
       if( path && path.length && path.substr(0,1) == "/") relPath = path.substr(1);
       var results = asHdfsFolders(relPath, files);
       var latch = files.length;
+      var latchDecrementAndCb = function(){
+        latch--;
+        if(latch == 0) {
+          //console.log("fin", results);
+          cb(null, results);
+        }
+      }
       for(var i = 0; i < files.length; i++) {
         (function(i) {
+            if (files[i].type != 'DIRECTORY'){
+              return latchDecrementAndCb();;
+            }
+
             console.log("subrequest: ", path + files[i].pathSuffix);
         request(op(path + files[i].pathSuffix, WebHdfsOp.DIRECTORY_SUMMARY),
           function(err, response, statsResponse) {
             if(err) {
                 console.log("failed: " + files[i].pathSuffix);
                 console.log(err);
-                latch--;
-                return cb(err, null);
+                return latchDecrementAndCb();
+                //return cb(err, null);
             }
             
             //FIXME check how node handle the share variable between different thread.
-            latch--;
 						try {
 							stats = JSON.parse(statsResponse);
 							if (stats.RemoteException) {
 								console.log("RemoteException", stats);
-								return cb(stats.RemoteException, null);
+								return latchDecrementAndCb();
+								//return cb(stats.RemoteException, null);
 							}
 							stats = stats.ContentSummary;
 						} catch (e) {
 							console.error("Parse GETCONTENTSUMMARY json response error,",statsResponse);
+							return latchDecrementAndCb();
 						}
-            
+
+						if (!stats)
+						  return latchDecrementAndCb();;
+
             results[i].size = stats.length;
             var cols = ['directoryCount','fileCount','spaceConsumed','spaceQuota'];
             if(!results[i].meta) results[i].meta = {};
             for(var meta in cols) results[i].meta[cols[meta]] = stats[cols[meta]];
-            if(latch == 0) {
-              //console.log("fin", results);
-              cb(null, results);
-            }
+            return latchDecrementAndCb();
+
         })})(i);
       }
 };
