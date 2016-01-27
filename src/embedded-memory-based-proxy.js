@@ -79,16 +79,21 @@ module.exports = function memoryStorageHandler (err, path, operation, params, re
         };
       }
 
+      var bufList = [];
+      if (append && storage[path].data.length > 0){
+        bufList.push(storage[path].data);
+      }
+
       req.on('data', function onData (data) {
-        var buf = new Buffer(data);
-        if (append && storage[path].data.length > 0){
-          storage[path].data.concat([buf], buf.length);
-        } else {
-          storage[path].data = buf;
-        }
+        bufList.push(new Buffer(data));
       });
 
       req.on('end', function onFinish () {
+        var totalLength = 0;
+        for (var i=0; i<bufList.length; i++)
+          totalLength += bufList[i].length;
+        storage[path].data = Buffer.concat(bufList, totalLength);;
+
         storage[path].pathSuffix = p.basename(path);
         storage[path].length = storage[path].data.length;
         return next();
@@ -108,7 +113,7 @@ module.exports = function memoryStorageHandler (err, path, operation, params, re
         var buf = tmp.slice(0, length);
         res.writeHead(200, {
           'content-length': length,
-          'content-type': mime.lookup(path)
+          'content-type': 'application/octet-stream'
         });
 
         res.end(buf);
@@ -116,10 +121,10 @@ module.exports = function memoryStorageHandler (err, path, operation, params, re
       }else{
         res.writeHead(200, {
           'content-length': storage[path].data.length,
-          'content-type': mime.lookup(path)
+          'content-type': 'application/octet-stream'
         });
-
-        res.end(storage[path].data);
+        var buf = new Buffer(storage[path].data);
+        res.end(buf);
       }
 
       return next();
