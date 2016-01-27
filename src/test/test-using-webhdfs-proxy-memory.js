@@ -3,7 +3,7 @@ var FoldersHdfs = new require('../folders-hdfs');
 var testFoldersHdfs = new require('./test-folders-hdfs');
 
 var WebHDFSProxy = require('webhdfs-proxy');
-var memoryStorageHandler = require('webhdfs-proxy-memory');
+var memoryStorageHandler = require('../embedded-memory-based-proxy.js');
 
 var prefix = '/http_window.io_0:webhdfs/';
 var PORT = 40050;

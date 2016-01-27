@@ -16,8 +16,7 @@
   "dependencies": {
     "mime": "^1.3.4",
     "request": "^2.55.0",
-    "webhdfs-proxy": "^0.1.2",
-    "webhdfs-proxy-memory": "^0.1.2"
+    "webhdfs-proxy": "^0.1.2"
   },
   "devDependencies": {}
 }
