@@ -7,10 +7,6 @@ var mime = require('mime');
 
 var DEFAULT_HDFS_PREFIX = "/http_window.io_0:webhdfs/";
 
-var baseurl;
-var username;
-var prefix;
-
 //TODO we may want to pass the host, port, username as the param of inin
 var FoldersHdfs = function(prefix, options) {
 	assert.equal(typeof (options), 'object', 
@@ -20,7 +16,6 @@ var FoldersHdfs = function(prefix, options) {
 		prefix += '/';
 
 	this.prefix = prefix || DEFAULT_HDFS_PREFIX;
-
 	this.configure(options);
 };
 
@@ -44,11 +39,7 @@ FoldersHdfs.prototype.configure = function(options) {
 
 	this.username = options.username;
 
-	baseurl = this.baseurl;
-	username = this.username;
-	prefix = this.prefix;
-
-	console.log("inin foldersHdfs,", baseurl, username, prefix);
+	console.log("inin foldersHdfs,", this.baseurl, this.username, this.prefix);
 }
 
 FoldersHdfs.prototype.features = FoldersHdfs.features = {
@@ -78,7 +69,9 @@ FoldersHdfs.isConfigValid = function(config, cb) {
 }
 
 FoldersHdfs.prototype.getHdfsPath = function(path) {
-	path = (path == '/' ? null : path.slice(1));
+	var prefix = this.prefix;
+
+  path = (path == '/' ? null : path.slice(1));
 
 	if (path == null) {
 		return '';
@@ -96,6 +89,23 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 
 	return path;
 }
+
+FoldersHdfs.prototype.op = function(path, op) {
+  // //FIXME view_op ??
+  // var parts = view_op(path, viewfs);
+  // var url = parts.base + parts.path + "?op="+op+"&user.name=hdfs";
+
+  //delete the '/' of path
+  if ( !path || typeof(path)=='undefined' || path=="/"){
+    path = "";
+  }else if (path.length &&  path.substr(0, 1) == "/"){
+    path = path.substr(1);
+  }
+
+  var url = uriParse.resolve(this.baseurl, path + "?op=" + op + "&user.name="+this.username);
+  console.log("out: " + url);
+  return url;
+};
 
 /**
  * list folders/files
@@ -117,8 +127,32 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
  *    }
  */
 FoldersHdfs.prototype.ls = function(path,cb){
+  var self = this;
+	path = self.getHdfsPath(path);
 
-	ls(this.getHdfsPath(path), cb);
+  request(self.op(path, WebHdfsOp.LIST), function(err, response, content) {
+    if (err) {
+      console.error("Could not connect", err);
+      return cb(err, null);
+    }
+    try {
+      //console.log("LISTSTATUS result:");
+      //console.log(content);
+
+      var fileObj = JSON.parse(content);
+      files = fileObj.FileStatuses.FileStatus;
+      if (files.length == 0){
+        cb(null, files);
+      }
+    } catch (e) {
+      console.error("No luck parsing, path: ", path);
+      console.error(fileObj);
+      console.error(content);
+      return cb({"errorMsg":"parse result error in server"},null);
+    }
+    self.processListResponse(path, fileObj, cb);
+  });
+
 };
 
 //Temporary comment meta, have to fixed the 'viewfs' first 
@@ -135,16 +169,77 @@ FoldersHdfs.prototype.ls = function(path,cb){
  * write(path,data,cb)
  */
 FoldersHdfs.prototype.write = function(uri, data, cb) {
-	
-	write(this.getHdfsPath(uri), data, function(error,result) {
-		if (error){
-			cb(error, null);
-			return;
-		}
-		
-		cb(null, result);
+	var self = this;
+  var uri = self.getHdfsPath(uri);
 
-	});
+  // curl -i -X PUT "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=CREATE
+  var path = self.op(uri, WebHdfsOp.CREATE);
+  path = path + '&overwrite=true';
+
+  //step 1: get the redirected url for writing data
+  request.put(path, function(error, response, body) {
+    // forward request error
+    if (error){
+      console.error(error);
+      return cb(error, null);
+    }
+
+    if (isError(response)) {
+      console.error(response);
+      return cb(parseError(body), null);
+    }
+
+    // check for the expected redirect,307 TEMPORARY_REDIRECT
+    // will be redirected to a datanode where the file data is to be written
+    if (!isRedirect(response)){
+      var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
+        + response.statusCode;
+      console.error(errMsg);
+      console.error(response);
+      return cb(errMsg, null);
+    }
+
+    var redirectedUri = response.headers.location;
+
+    console.log("send data to redirect uri, ",redirectedUri);
+
+    if (data instanceof Buffer){
+
+      request.put({
+        uri : redirectedUri,
+        // NOTES we should use the form upload instead??
+        body : data
+      }, function(error, response, body) {
+        if (error){
+          console.error(error);
+          return cb(error, null);
+        }
+
+        if (isError(response)){
+          console.error(response);
+          return cb(parseError(body), null);
+        }
+
+        else if (isSuccess(response))
+          return cb(null, "created success");
+        else
+          return cb("unkowned response, " + response.body, null);
+      });
+    }else{
+
+      var errHandle = function(e){
+        console.error("error in pipe write to folder-hdfs,",e)
+        cb(e.message, null);
+      };
+
+      //stream source input, use pipe
+      data.on('error',errHandle)
+        .pipe(request.put(redirectedUri).on('error',errHandle)
+            .on('end', function() {
+              cb(null, "write uri success");}));
+
+    }
+  });
 
 };
 
@@ -161,32 +256,103 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
  *    }
  */
 FoldersHdfs.prototype.cat = function(data, cb) {
-	var path = data;	
+  var self = this;
+	var path = self.getHdfsPath(data);
 
-	cat(this.getHdfsPath(path), function(error, result) {
+  // step 1: list file status
+  var listUrl = self.op(path, WebHdfsOp.GET_FILE_STATUS);
+  request.get({
+    url : listUrl,
+    json : true
+  }, function(error, response, body) {
 
-		if (error){
-			cb(error, null);
-			return;
-		}
+    if (error){
+      console.error(error);
+      return cb(error, null);
+    }
 
-		cb(null, result);
-		
-	//		var headers = {
-	//			"Content-Length" : result.size,
-	//			"Content-Type" : "application/octet-stream",
-	//			"X-File-Type" : "application/octet-stream",
-	//			"X-File-Size" : result.size,
-	//			"X-File-Name" : result.name
-	//		};
-	//
-	//		cb({
-	//			streamId : o.streamId,
-	//			data : result.stream,
-	//			headers : headers,
-	//			shareId : data.shareId
-	//		});
-	});
+    if (isError(response)) {
+      console.error(response);
+      return cb(parseError(body), null);
+    }
+
+    if (typeof body === 'string'){
+      try{
+        body = JSON.parse(body);
+      }catch(err){
+        body = null;
+      }
+    }
+
+    // get the json of FileStatus
+    var fileStatus = body.FileStatus;
+    // check if is file, don't support cat Directoy
+    if (fileStatus.type == null || fileStatus.type == 'DIRECTORY') {
+      console.error("refused to cat directory");
+      return cb("refused to cat directory", null);
+    }
+
+    // step 2: get the redirect url for reading the data
+    var readUrl = self.op(path, WebHdfsOp.READ);
+    //request.put(readUrl, function(error, response, body) {
+    //FIXME, may auto redirect when solving the dns
+    request.get({ url: readUrl, followRedirect: false }, function(error, response, body) {
+      if (error){
+        console.error(error);
+        return cb(error, null);
+      }
+
+      if (isError(response)) {
+        console.error(response);
+        return cb(parseError(body), null);
+      }
+
+      // check if there is a redirect url for reading here.
+      if (!isRedirect(response)){
+        var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
+          + response.statusCode;
+        console.error(errMsg);
+        console.error(response);
+        return cb(errMsg, null);
+      }
+
+      var redirectedUri = response.headers.location;
+
+      console.log("get data from redirect uri, ",redirectedUri);
+
+      cb(null, {
+        stream: request(redirectedUri),
+        size : fileStatus.length,
+        // check name here
+        name: path
+        //name : fileStatus.pathSuffix
+      })
+
+      //      // step 3: read the file data from the redirected url.
+      //      var retStream = request.get(redirectedUri,function(error, response, body){
+      //        if (error){
+      //          console.error(error);
+      //          return cb(error, null);
+      //        }
+      //
+      //        if (isError(response)){ 
+      //          console.error(response);
+      //          return cb(parseError(body), null);
+      //        }
+      //
+      //        cb(null, {
+      //           // TODO check how to compatible with stream here.
+      //          //stream : body,
+      //          stream: retStream,
+      //          size : fileStatus.length,
+      //        // TODO check name here
+      //          name : fileStatus.pathSuffix
+      //        });
+      //      });
+    });
+
+  });
+
 };
 
 /**
@@ -202,24 +368,110 @@ FoldersHdfs.prototype.unlink = function(path, cb) {
 
 	assert.equal(typeof (cb), 'function', "argument 'cb' must be a function");
 
-	unlink(this.getHdfsPath(path), cb);
+	path = this.getHdfsPath(path);
+
+  request.del(this.op(path, WebHdfsOp.DELETE), function(err, response, content) {
+    if (err) {
+      console.log('unlink files error, ', err);
+      return cb(err, null);
+    }
+
+    if (isError(response)) {
+      console.error(response);
+      return cb(parseError(body), null);
+    } else if (isSuccess(response))
+      return cb(null, content);
+    else
+      return cb("unkowned response, " + response.body, null);
+
+  });
+
 }
 
-var op = function(path, op) {
-	// //FIXME view_op ??
-	// var parts = view_op(path, viewfs);
-	// var url = parts.base + parts.path + "?op="+op+"&user.name=hdfs";
-	
-	//delete the '/' of path
-	if ( !path || typeof(path)=='undefined' || path=="/"){
-		path = "";
-	}else if (path.length &&  path.substr(0, 1) == "/"){
-		path = path.substr(1);
-	}
+FoldersHdfs.prototype.asHdfsFolders = function(dir, files) {
+  var out = [];
+  for (var i = 0; i < files.length; i++) {
+    var file = files[i];
+    var o = {
+      name : file.pathSuffix
+    };
+    o.fullPath = dir + file.pathSuffix;
+    if (!o.meta)
+      o.meta = {};
+    var cols = [ 'permission', 'owner', 'group', 'fileId' ];
+    for ( var meta in cols)
+      o.meta[cols[meta]] = file[cols[meta]];
+    o.uri = this.prefix + o.fullPath;
+    o.size = 0;
+    o.extension = "txt";
+    o.type = "text/plain";
+    if (file.type == 'DIRECTORY') {
+      o.extension = '+folder';
+      o.type = "";
+    }
+    o.modificationTime = file.modificationTime ? +new Date(
+        file.modificationTime) : 0;
+    out.push(o);
+  }
+  return out;
+};
 
-	var url = uriParse.resolve(baseurl, path + "?op=" + op + "&user.name="+username);
-	console.log("out: " + url);
-	return url;
+FoldersHdfs.prototype.processListResponse = function(path, content, cb) {
+  var self = this;
+  
+  var relPath = path;
+  var files = content.FileStatuses.FileStatus;
+  if( path && path.length && path.substr(0,1) == "/") relPath = path.substr(1);
+  var results = self.asHdfsFolders(relPath, files);
+  var latch = files.length;
+  var latchDecrementAndCb = function(){
+    latch--;
+    if(latch == 0) {
+      //console.log("fin", results);
+      cb(null, results);
+    }
+  }
+  for(var i = 0; i < files.length; i++) {
+    (function(i) {
+        if (files[i].type != 'DIRECTORY'){
+          return latchDecrementAndCb();;
+        }
+
+        console.log("subrequest: ", path + files[i].pathSuffix);
+    request(self.op(path + files[i].pathSuffix, WebHdfsOp.DIRECTORY_SUMMARY),
+      function(err, response, statsResponse) {
+        if(err) {
+            console.log("failed: " + files[i].pathSuffix);
+            console.log(err);
+            return latchDecrementAndCb();
+            //return cb(err, null);
+        }
+        
+        //FIXME check how node handle the share variable between different thread.
+        try {
+          stats = JSON.parse(statsResponse);
+          if (stats.RemoteException) {
+            console.log("RemoteException", stats);
+            return latchDecrementAndCb();
+            //return cb(stats.RemoteException, null);
+          }
+          stats = stats.ContentSummary;
+        } catch (e) {
+          console.error("Parse GETCONTENTSUMMARY json response error,",statsResponse);
+          return latchDecrementAndCb();
+        }
+
+        if (!stats)
+          return latchDecrementAndCb();;
+
+        results[i].size = stats.length;
+        var cols = ['directoryCount','fileCount','spaceConsumed','spaceQuota'];
+        if(!results[i].meta) results[i].meta = {};
+        for(var meta in cols) results[i].meta[cols[meta]] = stats[cols[meta]];
+        return latchDecrementAndCb();
+
+    })})(i);
+  }
 };
 
 //http redirect status code
@@ -257,177 +509,6 @@ var parseError = function (body){
 	return error;
 };
 
-//cat file 
-var cat = function(path, cb) {
-
-	// step 1: list file status
-	var listUrl = op(path, WebHdfsOp.GET_FILE_STATUS);
-	request.get({
-		url : listUrl,
-		json : true
-	}, function(error, response, body) {
-
-		if (error){
-			console.error(error);
-			return cb(error, null);
-		}
-
-		if (isError(response)) {
-			console.error(response);
-			return cb(parseError(body), null);
-		}
-
-		if (typeof body === 'string'){
-			try{
-				body = JSON.parse(body);
-			}catch(err){
-				body = null;
-			}
-		}
-
-		// get the json of FileStatus
-		var fileStatus = body.FileStatus;
-		// check if is file, don't support cat Directoy
-		if (fileStatus.type == null || fileStatus.type == 'DIRECTORY') {
-			console.error("refused to cat directory");
-			return cb("refused to cat directory", null);
-		}
-
-		// step 2: get the redirect url for reading the data
-		var readUrl = op(path, WebHdfsOp.READ);
-		//request.put(readUrl, function(error, response, body) {
-		//FIXME, may auto redirect when solving the dns
-		request.get({ url: readUrl, followRedirect: false }, function(error, response, body) {
-			if (error){
-				console.error(error);
-				return cb(error, null);
-			}
-
-			if (isError(response)) {
-				console.error(response);
-				return cb(parseError(body), null);
-			}
-			
-			// check if there is a redirect url for reading here.
-			if (!isRedirect(response)){
-				var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
-					+ response.statusCode;
-				console.error(errMsg);
-				console.error(response);
-				return cb(errMsg, null);
-			}
-			
-			var redirectedUri = response.headers.location;
-
-			console.log("get data from redirect uri, ",redirectedUri);
-
-			cb(null, {
-				stream: request(redirectedUri),
-				size : fileStatus.length,
-				// check name here
-				name: path
-				//name : fileStatus.pathSuffix
-			})
-
-			//			// step 3: read the file data from the redirected url.
-			//			var retStream = request.get(redirectedUri,function(error, response, body){
-			//				if (error){
-			//					console.error(error);
-			//					return cb(error, null);
-			//				}
-			//
-			//				if (isError(response)){ 
-			//					console.error(response);
-			//					return cb(parseError(body), null);
-			//				}
-			//
-			//				cb(null, {
-			//					 // TODO check how to compatible with stream here.
-			//					//stream : body,
-			//					stream: retStream,
-			//					size : fileStatus.length,
-			//				// TODO check name here
-			//					name : fileStatus.pathSuffix
-			//				});
-			//			});
-		});
-
-	});
-};
-
-// write file
-var write = function(uri, data, cb) {
-
-	// curl -i -X PUT "http://<HOST>:<PORT>/webhdfs/v1/<PATH>?op=CREATE
-	var path = op(uri, WebHdfsOp.CREATE);
-	path = path + '&overwrite=true';
-
-	//step 1: get the redirected url for writing data
-	request.put(path, function(error, response, body) {
-		// forward request error
-		if (error){
-			console.error(error);
-			return cb(error, null);
-		}
-
-		if (isError(response)) {
-			console.error(response);
-			return cb(parseError(body), null);
-		}
-		
-		// check for the expected redirect,307 TEMPORARY_REDIRECT
-		// will be redirected to a datanode where the file data is to be written
-		if (!isRedirect(response)){
-			var errMsg = "expecting redirect 307, return un-expected status code, statusCode:"
-				+ response.statusCode;
-			console.error(errMsg);
-			console.error(response);
-			return cb(errMsg, null);
-		}
-
-		var redirectedUri = response.headers.location;
-
-		console.log("send data to redirect uri, ",redirectedUri);
-
-		if (data instanceof Buffer){
-		
-			request.put({
-				uri : redirectedUri,
-				// NOTES we should use the form upload instead??
-				body : data
-			}, function(error, response, body) {
-				if (error){
-					console.error(error);
-					return cb(error, null);
-				}
-				
-				if (isError(response)){
-					console.error(response);
-					return cb(parseError(body), null);
-				}
-				
-				else if (isSuccess(response))
-					return cb(null, "created success");
-				else
-					return cb("unkowned response, " + response.body, null);
-			});
-		}else{
-			
-			var errHandle = function(e){
-				console.error("error in pipe write to folder-hdfs,",e)
-				cb(e.message, null);
-			};
-
-			//stream source input, use pipe
-			data.on('error',errHandle)
-				.pipe(request.put(redirectedUri).on('error',errHandle)
-						.on('end', function() {
-							cb(null, "write uri success");}));
-			
-		}
-	});
-}
-
 // Providers:
 var asHdfsMounts = function() {
     var mounts = [];
@@ -444,33 +525,7 @@ var asHdfsMounts = function() {
     return f;
 };
 
-var asHdfsFolders = function(dir, files) {
-	var out = [];
-	for (var i = 0; i < files.length; i++) {
-		var file = files[i];
-		var o = {
-			name : file.pathSuffix
-		};
-		o.fullPath = dir + file.pathSuffix;
-		if (!o.meta)
-			o.meta = {};
-		var cols = [ 'permission', 'owner', 'group', 'fileId' ];
-		for ( var meta in cols)
-			o.meta[cols[meta]] = file[cols[meta]];
-		o.uri = prefix + o.fullPath;
-		o.size = 0;
-		o.extension = "txt";
-		o.type = "text/plain";
-		if (file.type == 'DIRECTORY') {
-			o.extension = '+folder';
-			o.type = "";
-		}
-		o.modificationTime = file.modificationTime ? +new Date(
-				file.modificationTime) : 0;
-		out.push(o);
-	}
-	return out;
-};
+
 
 
 // so meta.
@@ -479,48 +534,6 @@ var lsMounts = function(path, cb) {
 	processListResponse(path, asHdfsMounts(), cb);
 };
 
-var ls = function(path, cb) {
-	request(op(path, WebHdfsOp.LIST), function(err, response, content) {
-		if (err) {
-			console.error("Could not connect", err);
-			return cb(err, null);
-		}
-		try {
-			//console.log("LISTSTATUS result:");
-			//console.log(content);
-
-			var fileObj = JSON.parse(content);
-			files = fileObj.FileStatuses.FileStatus;
-			if (files.length == 0){
-				cb(null, files);
-			}
-		} catch (e) {
-			console.error("No luck parsing, path: ", path);
-			console.error(fileObj);
-			console.error(content);
-			return cb({"errorMsg":"parse result error in server"},null);
-		}
-		processListResponse(path, fileObj, cb);
-	});
-};
-
-var unlink = function(path, cb) {
-	request.del(op(path, WebHdfsOp.DELETE), function(err, response, content) {
-		if (err) {
-			console.log('unlink files error, ', err);
-			return cb(err, null);
-		}
-
-		if (isError(response)) {
-			console.error(response);
-			return cb(parseError(body), null);
-		} else if (isSuccess(response))
-			return cb(null, content);
-		else
-			return cb("unkowned response, " + response.body, null);
-
-	});
-}
 
 var lsdu = function(path, cb) {
     var out = [];
@@ -540,61 +553,7 @@ var lsdu = function(path, cb) {
     }
 };
 
-var processListResponse = function(path, content, cb) {
-      var relPath = path;
-      var files = content.FileStatuses.FileStatus;
-      if( path && path.length && path.substr(0,1) == "/") relPath = path.substr(1);
-      var results = asHdfsFolders(relPath, files);
-      var latch = files.length;
-      var latchDecrementAndCb = function(){
-        latch--;
-        if(latch == 0) {
-          //console.log("fin", results);
-          cb(null, results);
-        }
-      }
-      for(var i = 0; i < files.length; i++) {
-        (function(i) {
-            if (files[i].type != 'DIRECTORY'){
-              return latchDecrementAndCb();;
-            }
 
-            console.log("subrequest: ", path + files[i].pathSuffix);
-        request(op(path + files[i].pathSuffix, WebHdfsOp.DIRECTORY_SUMMARY),
-          function(err, response, statsResponse) {
-            if(err) {
-                console.log("failed: " + files[i].pathSuffix);
-                console.log(err);
-                return latchDecrementAndCb();
-                //return cb(err, null);
-            }
-            
-            //FIXME check how node handle the share variable between different thread.
-						try {
-							stats = JSON.parse(statsResponse);
-							if (stats.RemoteException) {
-								console.log("RemoteException", stats);
-								return latchDecrementAndCb();
-								//return cb(stats.RemoteException, null);
-							}
-							stats = stats.ContentSummary;
-						} catch (e) {
-							console.error("Parse GETCONTENTSUMMARY json response error,",statsResponse);
-							return latchDecrementAndCb();
-						}
-
-						if (!stats)
-						  return latchDecrementAndCb();;
-
-            results[i].size = stats.length;
-            var cols = ['directoryCount','fileCount','spaceConsumed','spaceQuota'];
-            if(!results[i].meta) results[i].meta = {};
-            for(var meta in cols) results[i].meta[cols[meta]] = stats[cols[meta]];
-            return latchDecrementAndCb();
-
-        })})(i);
-      }
-};
 
 // FIXME: No upper bounds on this cache.
 var bigCache = {};
