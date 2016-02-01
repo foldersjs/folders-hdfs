@@ -136,8 +136,8 @@ FoldersHdfs.prototype.ls = function(path,cb){
       return cb(err, null);
     }
     try {
-      //console.log("LISTSTATUS result:");
-      //console.log(content);
+      // console.log("LISTSTATUS result:");
+      // console.log(content);
 
       var fileObj = JSON.parse(content);
       files = fileObj.FileStatuses.FileStatus;
@@ -402,7 +402,7 @@ FoldersHdfs.prototype.asHdfsFolders = function(dir, files) {
     for ( var meta in cols)
       o.meta[cols[meta]] = file[cols[meta]];
     o.uri = this.prefix + o.fullPath;
-    o.size = 0;
+    o.size = file.length;
     o.extension = "txt";
     o.type = "text/plain";
     if (file.type == 'DIRECTORY') {
