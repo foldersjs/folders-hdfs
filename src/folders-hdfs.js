@@ -3,6 +3,8 @@ var request = require('request');
 var uriParse = require('url');
 var assert = require('assert');
 var mime = require('mime');
+
+var WebHDFSProxy = require('webhdfs-proxy');
 //request.debug = true;
 
 var DEFAULT_HDFS_PREFIX = "/http_window.io_0:webhdfs/";
@@ -39,7 +41,46 @@ FoldersHdfs.prototype.configure = function(options) {
 
 	this.username = options.username;
 
-	console.log("inin foldersHdfs,", this.baseurl, this.username, this.prefix);
+	var ifStartEmbeddedProxy = options.startEmbeddedProxy || false;
+	if (ifStartEmbeddedProxy){
+	  startEmbeddedProxy(options);
+	}
+
+	console.log("init foldersHdfs,", this.baseurl, this.username, this.prefix);
+}
+
+var startEmbeddedProxy = function(options) {
+  console.log('startEmbeddedProxy options:', options);
+  var _handler;
+  if (options.backend && options.backend.instance) {
+    console.log('start a folders based embedded proxy, backend type:', options.backend.provider);
+    var FoldersStorageHandler = require('./embedded-folders-based-proxy.js');
+    var foldersStorageHandler = new FoldersStorageHandler(options.backend.instance);
+    _handler = foldersStorageHandler.storageHandler();
+  } else {
+    console.log('start a memory based embedded proxy');
+    _handler = require('./embedded-memory-based-proxy.js');
+  }
+
+  var PORT = 40050;
+  if ( options.backend && options.backend.port){
+    PORT = options.backend.port;
+  }
+  
+  WebHDFSProxy.createServer({
+    path : '/webhdfs/v1',
+    validate : true,
+
+    http : {
+      port : PORT
+    }
+  }, _handler, function onServerCreate(err, servers) {
+    if (err) {
+      console.log('WebHDFS proxy server started failed: ' + err.message);
+      return;
+    }
+    console.log('WebHDFS proxy server started success. ');
+  });
 }
 
 FoldersHdfs.prototype.features = FoldersHdfs.features = {

@@ -19,13 +19,13 @@ var convertFolderMetadataToHdfs = function(data) {
   };
 }
 
-var FoldersStorageHandler = function(FoldersBackend) {
-  this.backend = FoldersBackend;
+var FoldersStorageHandler = function(foldersBackend) {
+  this.backend = foldersBackend;
 };
 
 module.exports = FoldersStorageHandler;
 
-// write a memory based hdfs proxy, data stored in Buffer.
+// write a folders based hdfs proxy, data stored using the backend folders..
 FoldersStorageHandler.prototype.storageHandler = function() {
   var backend = this.backend;
 
