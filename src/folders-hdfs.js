@@ -19,6 +19,7 @@ var FoldersHdfs = function(prefix, options) {
 
 	this.prefix = prefix || DEFAULT_HDFS_PREFIX;
 	this.configure(options);
+
 };
 
 // The web hdfs operation support
@@ -35,18 +36,18 @@ module.exports = FoldersHdfs;
 
 FoldersHdfs.prototype.configure = function(options) {
 
-	this.baseurl = options.baseurl;
-	if (this.baseurl.length && this.baseurl.substr(-1) != "/")
-		this.baseurl = this.baseurl + "/";
+  this.baseurl = options.baseurl;
+  if (this.baseurl.length && this.baseurl.substr(-1) != "/")
+    this.baseurl = this.baseurl + "/";
 
-	this.username = options.username;
+  this.username = options.username;
 
-	var ifStartEmbeddedProxy = options.startEmbeddedProxy || false;
-	if (ifStartEmbeddedProxy){
-	  startEmbeddedProxy(options);
-	}
+  var ifStartEmbeddedProxy = options.startEmbeddedProxy || false;
+  if (ifStartEmbeddedProxy) {
+    startEmbeddedProxy(options);
+  }
 
-	console.log("init foldersHdfs,", this.baseurl, this.username, this.prefix);
+  console.log("init foldersHdfs,", this.baseurl, this.username, this.prefix);
 }
 
 var startEmbeddedProxy = function(options) {
@@ -125,9 +126,9 @@ FoldersHdfs.prototype.getHdfsPath = function(path) {
 	prefixPath = prefixPath + '/';
 
 	// if the path start with the prefix, remove the prefix string.
-	if (prefixPath == prefix)
-		path = parts.slice(1, parts.length).join('/');
-
+	if (prefixPath == prefix){
+		path = '/' + parts.slice(1, parts.length).join('/');
+	}
 	return path;
 }
 
@@ -300,7 +301,7 @@ FoldersHdfs.prototype.cat = function(data, cb) {
   var self = this;
 	var path = self.getHdfsPath(data);
 
-  // step 1: list file status
+  // step 1: list file status, we need the size info of file.
   var listUrl = self.op(path, WebHdfsOp.GET_FILE_STATUS);
   request.get({
     url : listUrl,
@@ -328,6 +329,8 @@ FoldersHdfs.prototype.cat = function(data, cb) {
     // get the json of FileStatus
     var fileStatus = body.FileStatus;
     // check if is file, don't support cat Directoy
+    if (fileStatus == null)
+      return cb('file not exist', null);
     if (fileStatus.type == null || fileStatus.type == 'DIRECTORY') {
       console.error("refused to cat directory");
       return cb("refused to cat directory", null);

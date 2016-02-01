@@ -76,7 +76,7 @@ FoldersStorageHandler.prototype.storageHandler = function() {
           return next(new Error(err));
         } else {
           data.stream.pipe(res);
-          return next();
+          //return next();
         }
 
       });
@@ -84,7 +84,6 @@ FoldersStorageHandler.prototype.storageHandler = function() {
       break;
     case 'getfilestatus':
       backend.ls(path, function(err, data) {
-
         if (err) {
 
           return next(new Error(err));
@@ -111,6 +110,7 @@ FoldersStorageHandler.prototype.storageHandler = function() {
         }
 
       });
+      break;
 
     case 'liststatus':
       backend.ls(path, function(err, data) {
