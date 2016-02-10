@@ -38,7 +38,11 @@ module.exports = function testFoldersHdfs(hdfs, testFolder, testFile, callback) 
 
 		// Step 3: test cat file
 		console.log("step 3: cat, ", testFilePath);
-		hdfs.cat(testFilePath, function cb(error, results) {
+				hdfs.cat({
+					path : testFilePath,
+					offset : 0,
+					length : 10
+				}, function cb(error, results) {
 		    if (error) {
 			console.log("error in cat file");
 			console.log(error);

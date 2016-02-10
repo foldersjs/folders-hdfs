@@ -288,7 +288,12 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
 /**
  * Read a file
  * 
- * @param uri, the file uri to cat 
+ * @param uri, the file uri to cat  or the param object
+ *   {
+ *   		path:  uri,
+ *   		offset: 0,
+ *   		length: 10
+ *   }
  * @param cb, callback  function(err, result) function.
  *    example for result.
  *    {
@@ -299,7 +304,15 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
  */
 FoldersHdfs.prototype.cat = function(data, cb) {
   var self = this;
-	var path = self.getHdfsPath(data);
+  var path;
+  var offsetParams='';
+  if (typeof(data) === 'string'){
+    path = self.getHdfsPath(data);
+  }else {
+    path = self.getHdfsPath(data.path);
+    if (data.offset) offsetParams += '&offset='+data.offset;
+    if (data.length) offsetParams += '&length='+data.length;
+  }
 
   // step 1: list file status, we need the size info of file.
   var listUrl = self.op(path, WebHdfsOp.GET_FILE_STATUS);
@@ -337,7 +350,7 @@ FoldersHdfs.prototype.cat = function(data, cb) {
     }
 
     // step 2: get the redirect url for reading the data
-    var readUrl = self.op(path, WebHdfsOp.READ);
+    var readUrl = self.op(path, WebHdfsOp.READ) + offsetParams;
     //request.put(readUrl, function(error, response, body) {
     //FIXME, may auto redirect when solving the dns
     request.get({ url: readUrl, followRedirect: false }, function(error, response, body) {
@@ -364,9 +377,14 @@ FoldersHdfs.prototype.cat = function(data, cb) {
 
       console.log("get data from redirect uri, ",redirectedUri);
 
+      var contentLength =  fileStatus.length;
+      //FIXME may fixed to the actual size,
+      if (typeof(data) === 'object' && data.length){
+        contentLength = data.length;
+      }
       cb(null, {
         stream: request(redirectedUri),
-        size : fileStatus.length,
+        size : contentLength,
         // check name here
         name: path
         //name : fileStatus.pathSuffix

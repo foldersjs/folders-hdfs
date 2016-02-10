@@ -49,9 +49,16 @@ list folders/files
 
 ```js
 /**
- * @param uri, the uri on hdfs to ls
+ * @param uri or query param, 
+ * the uri on hdfs to ls
  *    eg, '/', '/sub-folder1', 
  *    or dir start with {prefix}, '/http_window.io_0:webhdfs/sub-folder1'
+ * the param object
+ *   {
+ *      path:  uri,
+ *      offset: 0, 
+ *      length: 10
+ *   }
  * @param cb, callback function(err, result) function. 
  *    result will be a file info array. [{}, ... {}]
  *    a example file information
