@@ -70,7 +70,16 @@ FoldersStorageHandler.prototype.storageHandler = function() {
       break;
 
     case 'open':
-      backend.cat(path, function(err, data) {
+      var catParam  =  path;
+      if ( backend.features && backend.features.range_cat){
+        catParam = {
+            path: path,
+            offset: params.offset,
+            length: params.length
+            };
+        }
+
+      backend.cat(catParam, function(err, data) {
         if (err) {
 
           return next(new Error(err));

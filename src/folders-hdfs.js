@@ -86,9 +86,10 @@ var startEmbeddedProxy = function(options) {
 
 FoldersHdfs.prototype.features = FoldersHdfs.features = {
 	cat : true,
+	range_cat: true,
 	ls : true,
 	write : true,
-	server : false
+	server : true
 };
 
 FoldersHdfs.isConfigValid = function(config, cb) {
