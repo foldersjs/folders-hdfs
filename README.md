@@ -138,9 +138,29 @@ hdfs.write('path/to/file',writeData, function(err,result) {
 });
 ```
 
+### mkdir
+Create a directory
+
+```js
+/**
+ * @param uri, the directory uri to create 
+ * @param cb, callback  function(err, result) function.
+ *    example for result. {"boolean":true}
+ *
+ * mkdir(uri,cb) 
+ */
+hdfs.mkdir('dir-path-to-create', function(err, result){
+  if (err) {
+    // err handling
+  }
+  console.log("mkdir result, ", result);
+});
+
+```
+
 
 ###unlink
-Delete a File
+Delete a File/Dir
 
 ```js
 
