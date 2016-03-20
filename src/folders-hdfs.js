@@ -113,10 +113,9 @@ FoldersHdfs.isConfigValid = function(config, cb) {
 
 FoldersHdfs.prototype.getHdfsPath = function(path) {
   var prefix = this.prefix;
-
-  path = (path == '/' ? null : path.slice(1));
-
-  if (path == null) {
+  if (path && path.length > 0 && path[0] == '/')
+    path = path.slice(1);
+  if (!path) {
     return '';
   }
 
