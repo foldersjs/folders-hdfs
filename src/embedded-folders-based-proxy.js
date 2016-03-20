@@ -70,14 +70,14 @@ FoldersStorageHandler.prototype.storageHandler = function() {
       break;
 
     case 'open':
-      var catParam  =  path;
-      if ( backend.features && backend.features.range_cat){
+      var catParam = path;
+      if (backend.features && backend.features.range_cat) {
         catParam = {
-            path: path,
-            offset: params.offset,
-            length: params.length
-            };
-        }
+          path : path,
+          offset : params.offset,
+          length : params.length
+        };
+      }
 
       backend.cat(catParam, function(err, data) {
         if (err) {
@@ -85,7 +85,7 @@ FoldersStorageHandler.prototype.storageHandler = function() {
           return next(new Error(err));
         } else {
           data.stream.pipe(res);
-          //return next();
+          // return next();
         }
 
       });

@@ -6,11 +6,11 @@ var prefix = '/http_window.io_0:webhdfs/';
 var PORT = 40050;
 var url = "http://localhost:" + PORT + "/webhdfs/v1/";
 var hdfs = new FoldersHdfs(prefix, {
-    "baseurl": url,
-    "startEmbeddedProxy": true,
-    "backend": {
-      "port": PORT
-   }
+  "baseurl" : url,
+  "startEmbeddedProxy" : true,
+  "backend" : {
+    "port" : PORT
+  }
 });
 
 // begin to show test case.
@@ -22,4 +22,3 @@ testFoldersHdfs(hdfs, '/', 'test.txt', function(error) {
 
   console.log("test success");
 });
-
