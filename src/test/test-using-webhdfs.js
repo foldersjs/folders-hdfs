@@ -9,20 +9,39 @@ var hdfs = new FoldersHdfs(prefix, {
 });
 
 var testFilePath = '/test.txt';
+
 testFoldersHdfs(hdfs, '/', 'test.txt', function(error) {
     if (error) {
 	console.warning('test hdfs for folder error, ', '/');
 	return;
     }
 
-    console.log('test sub folders, ', '/folder1/');
-    testFoldersHdfs(hdfs, '/folder1/', 'test.txt', function(error) {
+    // test sub folders,
+    // first create a dir
+    var today = new Date().toISOString().slice(0, 10);
+    var newDir = '/' + today + '/';
+    hdfs.mkdir(newDir, function(error, result) {
 	if (error) {
-	    console.warning('test hdfs for folder error, ', '/');
-	    return;
+	    return console.warning('test mkdir error,', error);
 	}
+	console.log('mkdir result, ', result);
 
-	console.log("test success");
-    });
+	console.log('test sub folders, ', newDir);
+	testFoldersHdfs(hdfs, newDir, 'test.txt', function(error) {
+	    if (error) {
+		console.warning('test hdfs for folder error, ', '/');
+		return;
+	    }
 
-})
+	    // remove the new created folder after test
+	    hdfs.unlink(newDir, function cb(error, result) {
+		if (error) {
+		    console.log("error in unlink directory", error);
+		}
+
+		console.log("result for unlink directory,", result);
+		console.log("test success");
+	    });
+	});
+    })
+});

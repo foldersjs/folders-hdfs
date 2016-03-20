@@ -29,7 +29,8 @@ var WebHdfsOp = {
 	CREATE:"CREATE",
 	READ:"OPEN",
 	GET_FILE_STATUS:"GETFILESTATUS",
-	DELETE:"DELETE"
+	DELETE:"DELETE",
+	MKDIRS:"MKDIRS"
 };
 
 module.exports = FoldersHdfs;
@@ -89,6 +90,7 @@ FoldersHdfs.prototype.features = FoldersHdfs.features = {
 	range_cat: true,
 	ls : true,
 	write : true,
+	mkdir : true,
 	server : true
 };
 
@@ -149,6 +151,31 @@ FoldersHdfs.prototype.op = function(path, op) {
   console.log("out: " + url);
   return url;
 };
+
+// Make a Directory
+FoldersHdfs.prototype.mkdir = function(path, cb) {
+
+    var self = this;
+
+    request.put(this.op(path, WebHdfsOp.MKDIRS), function(err, response,
+	    content) {
+	if (err) {
+	    console.error('mkdir error,', error);
+	    return cb(err, null);
+	}
+
+	if (isError(response)) {
+	    console.error(response);
+	    return cb(parseError(body), null);
+	} else if (isSuccess(response)) {
+	    return cb(null, content);
+	} else {
+	    return cb("unkowned response, " + response.body, null);
+	}
+
+    });
+}
+
 
 /**
  * list folders/files
