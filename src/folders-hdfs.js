@@ -507,8 +507,10 @@ FoldersHdfs.prototype.processListResponse = function(path, content, cb) {
 
   var relPath = path;
   var files = content.FileStatuses.FileStatus;
-  if (path && path.length && path.substr(0, 1) == "/")
-    relPath = path.substr(1);
+  if (path == "" || path.substr(-1) != "/")
+    relPath = path + "/";
+  if (relPath && relPath.length && relPath.substr(0, 1) == "/")
+    relPath = relPath.substr(1);
   var results = self.asHdfsFolders(relPath, files);
   var latch = files.length;
   var latchDecrementAndCb = function() {
