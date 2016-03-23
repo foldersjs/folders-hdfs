@@ -145,7 +145,7 @@ FoldersHdfs.prototype.op = function(path, op) {
   }
 
   var url = uriParse.resolve(this.baseurl, path + "?op=" + op + "&user.name=" + this.username);
-  console.log("out: " + url);
+  // console.log("out: " + url);
   return url;
 };
 
@@ -272,7 +272,7 @@ FoldersHdfs.prototype.write = function(uri, data, cb) {
 
     var redirectedUri = response.headers.location;
 
-    console.log("send data to redirect uri, ", redirectedUri);
+    // console.log("send data to redirect uri, ", redirectedUri);
 
     if (data instanceof Buffer) {
 
@@ -399,7 +399,7 @@ FoldersHdfs.prototype.cat = function(data, cb) {
 
       var redirectedUri = response.headers.location;
 
-      console.log("get data from redirect uri, ", redirectedUri);
+      // console.log("get data from redirect uri, ", redirectedUri);
 
       var contentLength = fileStatus.length;
       // FIXME may fixed to the actual size,
@@ -457,7 +457,7 @@ FoldersHdfs.prototype.unlink = function(path, cb) {
 
   path = this.getHdfsPath(path);
 
-  request.del(this.op(path, WebHdfsOp.DELETE), function(err, response, content) {
+  request.del(this.op(path, WebHdfsOp.DELETE)+'&recursive=true', function(err, response, content) {
     if (err) {
       console.log('unlink files error, ', err);
       return cb(err, null);
@@ -527,7 +527,7 @@ FoldersHdfs.prototype.processListResponse = function(path, content, cb) {
         ;
       }
 
-      console.log("subrequest: ", path + files[i].pathSuffix);
+      // console.log("subrequest: ", path + files[i].pathSuffix);
       request(self.op(path + files[i].pathSuffix, WebHdfsOp.DIRECTORY_SUMMARY), function(err, response, statsResponse) {
         if (err) {
           console.log("failed: " + files[i].pathSuffix);
