@@ -156,7 +156,7 @@ FoldersHdfs.prototype.mkdir = function(path, cb) {
 
   request.put(this.op(path, WebHdfsOp.MKDIRS), function(err, response, content) {
     if (err) {
-      console.error('mkdir error,', error);
+      console.error('mkdir error,', err);
       return cb(err, null);
     }
 
